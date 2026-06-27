@@ -61,10 +61,10 @@ for MIGRATION in \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposals' AND column_name='deletionReason') THEN ALTER TABLE proposals ADD COLUMN \"deletionReason\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposals' AND column_name='discoveryNotes') THEN ALTER TABLE proposals ADD COLUMN \"discoveryNotes\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='services' AND column_name='pricingPackages') THEN ALTER TABLE services ADD COLUMN \"pricingPackages\" JSONB; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ProposalService' AND column_name='packageName') THEN ALTER TABLE \"ProposalService\" ADD COLUMN \"packageName\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ProposalService' AND column_name='packagePrice') THEN ALTER TABLE \"ProposalService\" ADD COLUMN \"packagePrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ProposalService' AND column_name='customPrice') THEN ALTER TABLE \"ProposalService\" ADD COLUMN \"customPrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ProposalService' AND column_name='notes') THEN ALTER TABLE \"ProposalService\" ADD COLUMN notes TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$"
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='packageName') THEN ALTER TABLE proposal_services ADD COLUMN \"packageName\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='packagePrice') THEN ALTER TABLE proposal_services ADD COLUMN \"packagePrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='customPrice') THEN ALTER TABLE proposal_services ADD COLUMN \"customPrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='notes') THEN ALTER TABLE proposal_services ADD COLUMN notes TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$"
 do
   psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "$MIGRATION" 2>&1 || true
 done
