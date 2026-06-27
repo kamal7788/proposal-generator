@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brand-green: #1B4332;
+  --color-brand-green-light: #2D6A4F;
+  --color-brand-green-dark: #0F2B1F;
+  --color-brand-cream: #FDF6EC;
+  --color-brand-cream-dark: #F5E6D0;
+  --color-brand-white: #FFFFFF;
+  --color-brand-black: #0A0A0A;
+  --color-brand-neutral: #6B7280;
+  --color-brand-neutral-light: #9CA3AF;
+  --color-brand-surface: #F8F5F0;
+  --color-brand-border: #E5E0D8;
+  --color-brand-success: #16A34A;
+  --color-brand-warning: #D97706;
+  --color-brand-danger: #DC2626;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-brand-surface);
+  color: var(--color-brand-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-neutral-light);
+  border-radius: 3px;
+}
+
+/* Print styles for PDF */
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Inline editable styles */
+[contenteditable="true"]:focus {
+  outline: 2px solid var(--color-brand-green-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+[contenteditable="true"]:hover {
+  outline: 1px dashed var(--color-brand-neutral-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Proposal print layout */
+.proposal-print {
+  page-break-after: always;
+}
+
+.proposal-print:last-child {
+  page-break-after: avoid;
 }
