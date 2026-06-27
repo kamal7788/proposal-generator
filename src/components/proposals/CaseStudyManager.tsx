@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 
 interface CaseStudy {
@@ -30,38 +30,40 @@ export default function CaseStudyManager({ caseStudies: initial }: { caseStudies
     const data: any = {};
     formData.forEach((value, key) => { data[key] = value; });
 
-    // Parse metrics from JSON string
     if (data.metrics) {
-      try {
-        data.metrics = JSON.parse(data.metrics);
-      } catch {
-        data.metrics = {};
-      }
+      try { data.metrics = JSON.parse(data.metrics); } catch { data.metrics = {}; }
     }
 
-    if (editing) {
-      await fetch(`/api/case-studies/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch("/api/case-studies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+    try {
+      if (editing) {
+        const res = await fetch(`/api/case-studies/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const updated = await res.json();
+        setCaseStudies(caseStudies.map(cs => cs.id === editing.id ? { ...cs, ...updated } : cs));
+      } else {
+        const res = await fetch("/api/case-studies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const created = await res.json();
+        setCaseStudies([{ ...created, service: null }, ...caseStudies]);
+      }
+    } catch (err) {
+      console.error("Failed to save case study:", err);
     }
     setLoading(false);
     setShowForm(false);
     setEditing(null);
-    router.refresh();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this case study?")) return;
     await fetch(`/api/case-studies/${id}`, { method: "DELETE" });
-    router.refresh();
+    setCaseStudies(caseStudies.filter(cs => cs.id !== id));
   }
 
   return (
@@ -81,7 +83,7 @@ export default function CaseStudyManager({ caseStudies: initial }: { caseStudies
                 {cs.summary && (
                   <p className="text-sm text-brand-neutral mt-1">{cs.summary}</p>
                 )}
-                {cs.metrics && (
+                {cs.metrics && Object.keys(cs.metrics).length > 0 && (
                   <div className="flex gap-3 mt-2">
                     {Object.entries(cs.metrics).map(([key, value]) => (
                       <span key={key} className="text-xs bg-brand-cream px-2 py-0.5 rounded-full text-brand-green">
@@ -91,9 +93,7 @@ export default function CaseStudyManager({ caseStudies: initial }: { caseStudies
                   </div>
                 )}
                 {cs.service && (
-                  <p className="text-xs text-brand-neutral mt-1">
-                    Service: {cs.service.name}
-                  </p>
+                  <p className="text-xs text-brand-neutral mt-1">Service: {cs.service.name}</p>
                 )}
               </div>
               <div className="flex gap-2">

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ProposalActions from "@/components/proposals/ProposalActions";
+import ProposalEditor from "@/components/proposals/ProposalEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -61,38 +62,11 @@ export default async function ProposalDetailPage({
           shareSlug={proposal.shareSlug}
         />
 
-        <div className="mt-6 space-y-4">
-          {/* Business Info Card */}
-          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-            <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">Business Information</h3>
-            <div className="grid grid-cols-2 gap-3 text-[12px]">
-              <div>
-                <p className="text-on-surface-variant">Contact</p>
-                <p className="font-medium text-on-surface">{proposal.contactName || "—"}</p>
-              </div>
-              <div>
-                <p className="text-on-surface-variant">Email</p>
-                <p className="font-medium text-on-surface">{proposal.contactEmail || "—"}</p>
-              </div>
-              <div>
-                <p className="text-on-surface-variant">Phone</p>
-                <p className="font-medium text-on-surface">{proposal.contactPhone || "—"}</p>
-              </div>
-              <div>
-                <p className="text-on-surface-variant">Industry</p>
-                <p className="font-medium text-on-surface">{proposal.industry || "—"}</p>
-              </div>
-              <div>
-                <p className="text-on-surface-variant">Website</p>
-                <p className="font-medium text-on-surface">{proposal.websiteUrl || "—"}</p>
-              </div>
-              <div>
-                <p className="text-on-surface-variant">Revenue</p>
-                <p className="font-medium text-on-surface">{proposal.approximateRevenue || "—"}</p>
-              </div>
-            </div>
-          </div>
+        <div className="mt-4">
+          <ProposalEditor proposal={proposal} />
+        </div>
 
+        <div className="mt-6 space-y-4">
           {/* Services */}
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
             <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">

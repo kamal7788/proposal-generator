@@ -29,29 +29,36 @@ export default function TestimonialManager({ testimonials: initial }: { testimon
     const data: any = {};
     formData.forEach((value, key) => { data[key] = value; });
 
-    if (editing) {
-      await fetch(`/api/testimonials/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch("/api/testimonials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+    try {
+      if (editing) {
+        const res = await fetch(`/api/testimonials/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const updated = await res.json();
+        setTestimonials(testimonials.map(t => t.id === editing.id ? { ...t, ...updated } : t));
+      } else {
+        const res = await fetch("/api/testimonials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const created = await res.json();
+        setTestimonials([created, ...testimonials]);
+      }
+    } catch (err) {
+      console.error("Failed to save testimonial:", err);
     }
     setLoading(false);
     setShowForm(false);
     setEditing(null);
-    router.refresh();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this testimonial?")) return;
     await fetch(`/api/testimonials/${id}`, { method: "DELETE" });
-    router.refresh();
+    setTestimonials(testimonials.filter(t => t.id !== id));
   }
 
   return (
@@ -69,7 +76,7 @@ export default function TestimonialManager({ testimonials: initial }: { testimon
               <div className="flex-1">
                 <p className="text-sm text-brand-black italic">&ldquo;{t.quote}&rdquo;</p>
                 <p className="text-xs text-brand-neutral mt-2">
-                  — {t.authorName}, {t.authorRole} @ {t.company}
+                  — {t.authorName}{t.authorRole ? `, ${t.authorRole}` : ""}{t.company ? ` @ ${t.company}` : ""}
                 </p>
               </div>
               <div className="flex gap-2">

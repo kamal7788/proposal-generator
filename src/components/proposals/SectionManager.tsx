@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 
 interface Section {
@@ -29,29 +29,36 @@ export default function SectionManager({ sections: initialSections }: { sections
     const data: any = {};
     formData.forEach((value, key) => { data[key] = value; });
 
-    if (editing) {
-      await fetch(`/api/sections/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch("/api/sections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, sortOrder: sections.length }),
-      });
+    try {
+      if (editing) {
+        const res = await fetch(`/api/sections/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const updated = await res.json();
+        setSections(sections.map(s => s.id === editing.id ? { ...s, ...updated } : s));
+      } else {
+        const res = await fetch("/api/sections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, sortOrder: sections.length }),
+        });
+        const created = await res.json();
+        setSections([...sections, created]);
+      }
+    } catch (err) {
+      console.error("Failed to save section:", err);
     }
     setLoading(false);
     setShowForm(false);
     setEditing(null);
-    router.refresh();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this section?")) return;
     await fetch(`/api/sections/${id}`, { method: "DELETE" });
-    router.refresh();
+    setSections(sections.filter(s => s.id !== id));
   }
 
   return (
@@ -80,19 +87,10 @@ export default function SectionManager({ sections: initialSections }: { sections
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setEditing(section); setShowForm(true); }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(section); setShowForm(true); }}>
                   Edit
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-brand-danger"
-                  onClick={() => handleDelete(section.id)}
-                >
+                <Button variant="ghost" size="sm" className="text-brand-danger" onClick={() => handleDelete(section.id)}>
                   Delete
                 </Button>
               </div>
@@ -108,25 +106,9 @@ export default function SectionManager({ sections: initialSections }: { sections
         maxWidth="lg"
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
-            name="title"
-            label="Section Title"
-            defaultValue={editing?.title}
-            required
-          />
-          <Input
-            name="category"
-            label="Category"
-            defaultValue={editing?.category || ""}
-            placeholder="e.g. company, process, cta"
-          />
-          <Textarea
-            name="content"
-            label="Content"
-            defaultValue={editing?.content}
-            rows={8}
-            required
-          />
+          <Input name="title" label="Section Title" defaultValue={editing?.title} required />
+          <Input name="category" label="Category" defaultValue={editing?.category || ""} placeholder="e.g. company, process, cta" />
+          <Textarea name="content" label="Content" defaultValue={editing?.content} rows={8} required />
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }}>
               Cancel

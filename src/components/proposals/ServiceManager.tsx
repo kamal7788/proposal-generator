@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 
@@ -36,29 +36,36 @@ export default function ServiceManager({ services: initialServices }: { services
     const data: any = {};
     formData.forEach((value, key) => { data[key] = value; });
 
-    if (editing) {
-      await fetch(`/api/services/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch("/api/services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+    try {
+      if (editing) {
+        const res = await fetch(`/api/services/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const updated = await res.json();
+        setServices(services.map(s => s.id === editing.id ? { ...s, ...updated } : s));
+      } else {
+        const res = await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const created = await res.json();
+        setServices([{ ...created, _count: { proposals: 0 } }, ...services]);
+      }
+    } catch (err) {
+      console.error("Failed to save service:", err);
     }
     setLoading(false);
     setShowForm(false);
     setEditing(null);
-    router.refresh();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this service?")) return;
     await fetch(`/api/services/${id}`, { method: "DELETE" });
-    router.refresh();
+    setServices(services.filter(s => s.id !== id));
   }
 
   return (
@@ -119,50 +126,14 @@ export default function ServiceManager({ services: initialServices }: { services
         maxWidth="lg"
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
-            name="name"
-            label="Service Name"
-            defaultValue={editing?.name}
-            required
-          />
-          <Input
-            name="shortDescription"
-            label="Short Description"
-            defaultValue={editing?.shortDescription || ""}
-          />
-          <Textarea
-            name="description"
-            label="Detailed Description"
-            defaultValue={editing?.description || ""}
-            rows={3}
-          />
-          <Textarea
-            name="outcomes"
-            label="Key Outcomes"
-            defaultValue={editing?.outcomes || ""}
-            rows={2}
-          />
-          <Textarea
-            name="deliverables"
-            label="Deliverables"
-            defaultValue={editing?.deliverables || ""}
-            rows={2}
-          />
-          <Input
-            name="pricingNotes"
-            label="Pricing Notes"
-            defaultValue={editing?.pricingNotes || ""}
-          />
-          <Input
-            name="proofPoints"
-            label="Proof Points / Metrics"
-            defaultValue={editing?.proofPoints || ""}
-          />
-          <Input
-            name="timeline"
-            label="Timeline"
-            defaultValue={editing?.timeline || ""}
-          />
+          <Input name="name" label="Service Name" defaultValue={editing?.name} required />
+          <Input name="shortDescription" label="Short Description" defaultValue={editing?.shortDescription || ""} />
+          <Textarea name="description" label="Detailed Description" defaultValue={editing?.description || ""} rows={3} />
+          <Textarea name="outcomes" label="Key Outcomes" defaultValue={editing?.outcomes || ""} rows={2} />
+          <Textarea name="deliverables" label="Deliverables" defaultValue={editing?.deliverables || ""} rows={2} />
+          <Input name="pricingNotes" label="Pricing Notes" defaultValue={editing?.pricingNotes || ""} />
+          <Input name="proofPoints" label="Proof Points / Metrics" defaultValue={editing?.proofPoints || ""} />
+          <Input name="timeline" label="Timeline" defaultValue={editing?.timeline || ""} />
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }}>
               Cancel
