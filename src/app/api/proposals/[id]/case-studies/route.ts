@@ -16,10 +16,13 @@ export async function GET(
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const assumptions = await db.assumption.findMany({
+  const selected = await db.proposalCaseStudy.findMany({
     where: { proposalId: id },
+    include: { caseStudy: true },
+    orderBy: { sortOrder: "asc" },
   });
-  return Response.json(assumptions);
+
+  return Response.json(selected);
 }
 
 export async function POST(
@@ -36,9 +39,21 @@ export async function POST(
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const assumption = await db.assumption.create({
-    data: { ...body, proposalId: id },
-  });
-  return Response.json(assumption);
+  const { caseStudyIds } = await request.json();
+
+  // Remove existing
+  await db.proposalCaseStudy.deleteMany({ where: { proposalId: id } });
+
+  // Add new
+  if (caseStudyIds?.length > 0) {
+    await db.proposalCaseStudy.createMany({
+      data: caseStudyIds.map((caseStudyId: string, index: number) => ({
+        proposalId: id,
+        caseStudyId,
+        sortOrder: index,
+      })),
+    });
+  }
+
+  return Response.json({ success: true });
 }

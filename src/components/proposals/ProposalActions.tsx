@@ -90,20 +90,20 @@ export default function ProposalActions({
       {status === "draft" && (
         <Button
           size="sm"
-          loading={loading === "published"}
-          onClick={() => updateStatus("published")}
+          loading={loading === "complete"}
+          onClick={() => updateStatus("complete")}
         >
-          Publish
+          Mark Complete
         </Button>
       )}
-      {status === "published" && (
+      {status === "complete" && (
         <Button
           variant="secondary"
           size="sm"
           loading={loading === "draft"}
           onClick={() => updateStatus("draft")}
         >
-          Unpublish
+          Revert to Draft
         </Button>
       )}
     </div>

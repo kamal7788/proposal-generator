@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { buildGenerationPrompt, parseGeneratedContent } from "@/lib/ai";
+import { checkRateLimit } from "@/lib/utils";
 
 export const maxDuration = 60;
 
@@ -13,6 +14,11 @@ export async function POST(
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rateLimit = checkRateLimit(`generate-${(session.user as any).id}`, 5, 300000);
+  if (!rateLimit.allowed) {
+    return Response.json({ error: "Rate limit exceeded. Try again later." }, { status: 429 });
+  }
+
   const proposal = await db.proposal.findUnique({
     where: { id },
     include: {
@@ -23,6 +29,9 @@ export async function POST(
   });
 
   if (!proposal) return Response.json({ error: "Not found" }, { status: 404 });
+  if (proposal.userId !== (session.user as any).id && (session.user as any).role !== "admin") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -53,8 +62,7 @@ export async function POST(
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("OpenAI error:", error);
+      console.error("OpenAI error:", await response.text());
       return Response.json({ error: "AI generation failed" }, { status: 500 });
     }
 

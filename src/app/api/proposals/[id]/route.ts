@@ -36,9 +36,14 @@ export async function PATCH(
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const existing = await db.proposal.findUnique({ where: { id } });
+  if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+  if (existing.userId !== (session.user as any).id && (session.user as any).role !== "admin") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await request.json();
 
-  // Convert score fields to numbers
   const scoreFields = ["websiteSpeedScore", "lighthousePerformance", "lighthouseAccessibility", "lighthouseSeo", "lighthouseBestPractices", "googleProfileScore", "localSeoScore"];
   for (const field of scoreFields) {
     if (body[field] !== undefined && body[field] !== "" && body[field] !== null) {

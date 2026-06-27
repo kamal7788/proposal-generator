@@ -20,6 +20,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   proposals     Proposal[]
+  passwordResets PasswordResetToken[]
 
   @@map("users")
 }
@@ -103,6 +104,7 @@ model Proposal {
   googleBusinessData    Json?
   deletionRequested     Boolean   @default(false)
   deletionReason        String?   @db.Text
+  internalNotes         String?   @db.Text
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   services              ProposalService[]
@@ -110,6 +112,10 @@ model Proposal {
   auditItems            AuditItem[]
   assumptions           Assumption[]
   assets                UploadedAsset[]
+  pricingPackages       PricingPackage[]
+  pricingAddons         PricingAddon[]
+  caseStudies           ProposalCaseStudy[]
+  competitorSnapshots   CompetitorSnapshot[]
 
   @@map("proposals")
 }
@@ -194,8 +200,23 @@ model CaseStudy {
   service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  proposals ProposalCaseStudy[]
 
   @@map("case_studies")
+}
+
+model ProposalCaseStudy {
+  id               String    @id @default(cuid())
+  proposalId       String
+  caseStudyId      String
+  proposal         Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  caseStudy        CaseStudy @relation(fields: [caseStudyId], references: [id], onDelete: Cascade)
+  overriddenFields Json?
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+
+  @@unique([proposalId, caseStudyId])
+  @@map("proposal_case_studies")
 }
 
 model Testimonial {
@@ -259,4 +280,63 @@ model UploadedAsset {
   createdAt    DateTime @default(now())
 
   @@map("uploaded_assets")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model PricingPackage {
+  id                 String   @id @default(cuid())
+  proposalId         String
+  proposal           Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?  @db.Text
+  price              Float
+  billingPeriod      String   @default("monthly")
+  includedServiceIds Json?
+  isDefault          Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("pricing_packages")
+}
+
+model PricingAddon {
+  id            String   @id @default(cuid())
+  proposalId    String
+  proposal      Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?  @db.Text
+  price         Float
+  billingPeriod String   @default("monthly")
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("pricing_addons")
+}
+
+model CompetitorSnapshot {
+  id             String   @id @default(cuid())
+  proposalId     String
+  proposal       Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  name           String
+  websiteUrl     String?
+  metrics        Json?
+  relativeScores Json?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("competitor_snapshots")
 }

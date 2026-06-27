@@ -16,10 +16,12 @@ export async function GET(
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const assumptions = await db.assumption.findMany({
-    where: { proposalId: id },
-  });
-  return Response.json(assumptions);
+  const [packages, addons] = await Promise.all([
+    db.pricingPackage.findMany({ where: { proposalId: id }, orderBy: { sortOrder: "asc" } }),
+    db.pricingAddon.findMany({ where: { proposalId: id }, orderBy: { sortOrder: "asc" } }),
+  ]);
+
+  return Response.json({ packages, addons });
 }
 
 export async function POST(
@@ -37,8 +39,19 @@ export async function POST(
   }
 
   const body = await request.json();
-  const assumption = await db.assumption.create({
-    data: { ...body, proposalId: id },
-  });
-  return Response.json(assumption);
+  const { type, ...data } = body;
+
+  if (type === "package") {
+    const pkg = await db.pricingPackage.create({
+      data: { ...data, proposalId: id },
+    });
+    return Response.json(pkg);
+  } else if (type === "addon") {
+    const addon = await db.pricingAddon.create({
+      data: { ...data, proposalId: id },
+    });
+    return Response.json(addon);
+  }
+
+  return Response.json({ error: "Invalid type" }, { status: 400 });
 }

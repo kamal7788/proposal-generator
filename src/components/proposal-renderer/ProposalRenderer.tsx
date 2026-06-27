@@ -58,11 +58,11 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
     <div className="min-h-screen bg-white">
       {/* Sticky glass header */}
       <nav className="glass-header sticky top-0 z-50 border-b border-[#c3cdd8]/30">
-        <div className="max-w-4xl mx-auto px-8 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/uploads/Main Logo White.png" alt="BrandAid" className="h-7" />
           </div>
-          <div className="flex items-center gap-4 text-[13px] text-on-surface-variant">
+          <div className="hidden md:flex items-center gap-4 text-[13px] text-on-surface-variant">
             <a href="#executive-summary" className="hover:text-on-surface transition-colors">Summary</a>
             <a href="#about-us" className="hover:text-on-surface transition-colors">About Us</a>
             <a href="#business-glance" className="hover:text-on-surface transition-colors">Business</a>
@@ -76,6 +76,14 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
 
       {/* 1. Cover */}
       <CoverHero businessName={proposal?.businessName} contactName={proposal?.contactName} />
+
+      {/* Cover Letter */}
+      {generated.coverLetter && (
+        <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30">
+          <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Cover Letter</h2>
+          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.coverLetter}</p>
+        </div>
+      )}
 
       {/* 2. Executive Summary */}
       <div id="executive-summary">
@@ -171,6 +179,14 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
         {auditItems.length > 0 && <AuditFindings items={auditItems} />}
       </div>
 
+      {/* Recommendations */}
+      {generated.recommendations && (
+        <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30 bg-surface">
+          <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">What We Recommend and Why</h2>
+          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.recommendations}</p>
+        </div>
+      )}
+
       {/* 13. Services + ROI per service */}
       <div id="services">
         {generated.servicesNarrative && (
@@ -193,7 +209,7 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
       {/* 14. Pricing / Package */}
       <div id="pricing">
         {totalPackagePrice > 0 && (
-          <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
+          <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Investment Summary</h2>
             <div className="bg-white rounded-xl border border-[#c3cdd8]/50 p-6">
               <div className="space-y-3">
@@ -219,6 +235,9 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
             {generated.pricingNarrative && (
               <p className="text-on-surface-variant leading-relaxed text-[14px] mt-6">{generated.pricingNarrative}</p>
             )}
+            <p className="text-[11px] text-on-surface-variant/60 mt-4 italic">
+              * All prices are exclusive of applicable taxes. ROI projections are estimates based on industry research and assumed improvements. Actual results may vary.
+            </p>
           </div>
         )}
       </div>

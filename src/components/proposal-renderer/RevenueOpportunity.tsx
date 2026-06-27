@@ -34,6 +34,11 @@ export default function RevenueOpportunity({
   const expected = calcScenario("expectedValue");
   const high = calcScenario("highValue");
 
+  const costOfDoingNothing = {
+    monthly: Math.round(expected * 1.2),
+    annual: Math.round(expected * 1.2 * 12),
+  };
+
   if (assumptions.length === 0) {
     return (
       <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
@@ -52,6 +57,29 @@ export default function RevenueOpportunity({
         <p className="text-white/70 text-[13px] mb-1">Projected Monthly Revenue Uplift</p>
         <p className="text-4xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected, currency)}</p>
         <p className="text-white/60 text-[12px] mt-1">Expected scenario based on your assumptions</p>
+      </div>
+
+      {/* Cost of Doing Nothing */}
+      <div className="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 rounded-2xl p-6 mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="material-symbols-outlined text-[20px] text-red-600">warning</span>
+          <h3 className="text-[15px] font-bold text-red-800 font-[family-name:var(--font-display)]">Cost of Doing Nothing</h3>
+        </div>
+        <p className="text-[13px] text-red-700 mb-4">
+          Every month without action costs your business in lost opportunities, declining visibility, and competitor gains.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white/80 rounded-xl p-4 text-center">
+            <p className="text-[11px] text-red-600 font-medium mb-1">Monthly Loss</p>
+            <p className="text-2xl font-bold text-red-700 font-[family-name:var(--font-display)]">{formatCurrency(costOfDoingNothing.monthly, currency)}</p>
+            <p className="text-[10px] text-red-500 mt-1">in missed revenue</p>
+          </div>
+          <div className="bg-white/80 rounded-xl p-4 text-center">
+            <p className="text-[11px] text-red-600 font-medium mb-1">Annual Loss</p>
+            <p className="text-2xl font-bold text-red-700 font-[family-name:var(--font-display)]">{formatCurrency(costOfDoingNothing.annual, currency)}</p>
+            <p className="text-[10px] text-red-500 mt-1">projected yearly impact</p>
+          </div>
+        </div>
       </div>
 
       {/* Scenario cards */}
@@ -100,7 +128,7 @@ export default function RevenueOpportunity({
       </div>
 
       <p className="text-[11px] text-on-surface-variant mt-4 italic">
-        * Projections are estimates based on industry benchmarks and assumed improvements. Actual results may vary.
+        * Projections are estimates based on industry research and assumed improvements. Actual results may vary.
       </p>
     </div>
   );

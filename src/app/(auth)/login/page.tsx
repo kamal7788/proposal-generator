@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,21 +37,18 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#efe8db] px-4">
       <div className="w-full max-w-[380px]">
         <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-8">
-          {/* Logo */}
           <div className="text-center mb-8">
             <img src="/uploads/Main Logo black.png" alt="BrandAid" className="h-10 mx-auto mb-3" />
             <h1 className="text-xl font-bold text-on-surface font-[family-name:var(--font-display)]">BrandAid</h1>
             <p className="text-[13px] text-on-surface-variant mt-1">Proposal Generator</p>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-[#dc2626]/5 border border-[#dc2626]/20 text-[13px] text-[#dc2626]">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[13px] font-medium text-on-surface mb-1.5">
@@ -88,6 +86,11 @@ export default function LoginPage() {
                   className="w-full pl-10 pr-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] bg-white text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-[#004527]/15 focus:border-[#004527] transition-colors"
                 />
               </div>
+              <div className="text-right mt-1">
+                <Link href="/forgot-password" className="text-[12px] text-[#004527] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -118,21 +121,18 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-[#c3cdd8]" />
             <span className="text-[12px] text-on-surface-variant font-medium">OR</span>
             <div className="flex-1 h-px bg-[#c3cdd8]" />
           </div>
 
-          {/* SSO */}
           <button className="w-full flex items-center justify-center gap-2 border border-[#c3cdd8] py-2.5 rounded-lg text-[13px] font-medium text-on-surface hover:bg-surface transition-colors">
             <span className="material-symbols-outlined text-[18px]">shield</span>
             Sign in with SSO
           </button>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-6">
           <div className="flex items-center justify-center gap-1.5 text-on-surface-variant">
             <span className="material-symbols-outlined text-[14px]">lock</span>

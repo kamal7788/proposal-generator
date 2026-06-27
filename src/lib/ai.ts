@@ -16,92 +16,179 @@ export interface GeneratedContent {
   pricingNarrative: string;
   faq: string;
   nextSteps: string;
+  coverLetter: string;
+  recommendations: string;
+  serviceExplanations: Record<string, string>;
+}
+
+interface ProposalContext {
+  businessName: string;
+  industry: string;
+  website: string;
+  address: string;
+  revenue: string;
+  traffic: string;
+  leads: string;
+  crm: string;
+  competitors: string;
+  speedScore: string;
+  performance: string;
+  accessibility: string;
+  seo: string;
+  bestPractices: string;
+  googleRating: string;
+  googleReviews: string;
+  googleProfileScore: string;
+  localSeoScore: string;
+  services: string;
+  serviceDetails: string;
+  painPoints: string;
+  goals: string;
+}
+
+function extractContext(proposal: any): ProposalContext {
+  return {
+    businessName: proposal.businessName,
+    industry: proposal.industry || "Not specified",
+    website: proposal.websiteUrl || "Not provided",
+    address: proposal.address || "Not provided",
+    revenue: proposal.approximateRevenue || "Not specified",
+    traffic: proposal.currentMonthlyTraffic || "Not specified",
+    leads: proposal.currentLeadVolume || "Not specified",
+    crm: proposal.existingCrm || "None",
+    competitors: proposal.competitors || "Not specified",
+    speedScore: proposal.websiteSpeedScore || "Not assessed",
+    performance: proposal.lighthousePerformance || "Not assessed",
+    accessibility: proposal.lighthouseAccessibility || "Not assessed",
+    seo: proposal.lighthouseSeo || "Not assessed",
+    bestPractices: proposal.lighthouseBestPractices || "Not assessed",
+    googleRating: proposal.googleBusinessData?.rating || "Not assessed",
+    googleReviews: proposal.googleBusinessData?.reviewCount || "Not assessed",
+    googleProfileScore: proposal.googleProfileScore || "Not assessed",
+    localSeoScore: proposal.localSeoScore || "Not assessed",
+    services: proposal.services?.map((s: any) => s.service.name).join(", ") || "None selected",
+    serviceDetails: proposal.services?.map((s: any) => {
+      const svc = s.service;
+      return `- ${svc.name}: ${svc.shortDescription || ""} | Outcomes: ${svc.outcomes || ""} | Timeline: ${svc.timeline || ""}`;
+    }).join("\n") || "None",
+    painPoints: proposal.painPoints || "Not specified",
+    goals: proposal.goals || "Not specified",
+  };
+}
+
+function baseInstructions(ctx: ProposalContext): string {
+  return `BUSINESS: ${ctx.businessName} | Industry: ${ctx.industry} | Website: ${ctx.website} | Address: ${ctx.address}
+REVENUE: ${ctx.revenue} | Traffic: ${ctx.traffic}/mo | Leads: ${ctx.leads}/mo | CRM: ${ctx.crm}
+SCORES: Speed ${ctx.speedScore} | Performance ${ctx.performance} | Accessibility ${ctx.accessibility} | SEO ${ctx.seo} | Best Practices ${ctx.bestPractices}
+GOOGLE: Rating ${ctx.googleRating} (${ctx.googleReviews} reviews) | Profile ${ctx.googleProfileScore}/100 | Local SEO ${ctx.localSeoScore}/100
+SERVICES: ${ctx.services}
+PAIN POINTS: ${ctx.painPoints}
+GOALS: ${ctx.goals}
+
+Write in a confident, strategic tone. Reference specific scores. Use the business name naturally. Never use generic template language.`;
+}
+
+export function generateCoverLetter(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a personalized cover letter/intro for this proposal. Open with a strong hook about their industry and situation. Reference 1-2 specific assessment findings. Position BrandAid as the strategic partner they need. Keep it to 2-3 paragraphs, warm but professional. Return ONLY the text, no JSON.`;
+}
+
+export function generateExecutiveSummary(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a compelling 2-3 paragraph executive summary. Open with the opportunity, reference key findings from the assessment, and position our solution. Be specific to ${ctx.businessName}'s situation. Return ONLY the text.`;
+}
+
+export function generateRecommendations(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a "What We Recommend and Why" section. Based on the audit findings and selected services, explain:
+1. The top 3 priorities for this business
+2. Why each service matters for their specific situation
+3. Expected outcomes with timelines
+Write 3-4 paragraphs. Be decisive and specific. Return ONLY the text.`;
+}
+
+export function generateServiceExplanations(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+For EACH service listed above, write a contextual explanation (2-3 sentences) of why it matters for ${ctx.businessName} specifically. Reference their scores, industry, and pain points.
+
+Return a JSON object with service names as keys and explanations as values. Example:
+${JSON.stringify(Object.fromEntries(ctx.services.split(", ").map(s => [s.trim(), "explanation here"])))}
+
+Return ONLY the JSON object.`;
+}
+
+export function generateNarratives(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Generate the following sections as a single JSON object:
+{
+  "aboutBrandAid": "2 paragraphs about BrandAid as a strategic growth consultancy. Focus on systems-thinking, long-term value, measurable results.",
+  "whyBrandAid": "2 paragraphs on why ${ctx.businessName} should choose BrandAid. Reference their specific industry and challenges.",
+  "ourProcess": "Describe our 4-phase process: Discovery, Strategy, Implementation, Optimization. 2 paragraphs.",
+  "businessSnapshot": "2 paragraphs about their current state using revenue, traffic, lead data. Frame as 'where you are now'.",
+  "criticalInformation": "2 paragraphs about critical gaps identified. Reference assessment scores.",
+  "websiteAnalysis": "3 paragraphs of detailed website analysis based on Lighthouse scores. Explain business impact of each score.",
+  "googleBusinessAnalysis": "2 paragraphs on Google Business Profile performance. Reference rating, reviews, completeness.",
+  "localSeoAnalysis": "2 paragraphs on local SEO performance and its business impact.",
+  "servicesNarrative": "2-3 paragraphs per service explaining the problem it solves, outcomes, and timeline.",
+  "roiNarrative": "2 paragraphs on ROI expectations. Reference current revenue and traffic. Frame as growth lever.",
+  "pricingNarrative": "1 paragraph on pricing philosophy - value-based, transparent, ROI-focused.",
+  "faq": "5-6 relevant FAQs specific to this business and industry.",
+  "nextSteps": "Clear next steps: strategy call, audit, proposal finalization, kickoff. Urgent but not pushy."
+}
+
+Return ONLY the JSON object.`;
 }
 
 export function buildGenerationPrompt(proposal: any): string {
-  const services = proposal.services?.map((s: any) => s.service.name).join(", ") || "None selected";
-  const industry = proposal.industry || "Not specified";
-  const businessName = proposal.businessName;
-  const website = proposal.websiteUrl || "Not provided";
-  const address = proposal.address || "Not provided";
-  const revenue = proposal.approximateRevenue || "Not specified";
-  const traffic = proposal.currentMonthlyTraffic || "Not specified";
-  const leads = proposal.currentLeadVolume || "Not specified";
-  const crm = proposal.existingCrm || "None";
-  const competitors = proposal.competitors || "Not specified";
-  const speedScore = proposal.websiteSpeedScore || "Not assessed";
-  const performance = proposal.lighthousePerformance || "Not assessed";
-  const accessibility = proposal.lighthouseAccessibility || "Not assessed";
-  const seo = proposal.lighthouseSeo || "Not assessed";
-  const bestPractices = proposal.lighthouseBestPractices || "Not assessed";
-  const googleRating = proposal.googleBusinessData?.rating || "Not assessed";
-  const googleReviews = proposal.googleBusinessData?.reviewCount || "Not assessed";
-  const googleProfileScore = proposal.googleProfileScore || "Not assessed";
-  const localSeoScore = proposal.localSeoScore || "Not assessed";
+  const ctx = extractContext(proposal);
 
-  return `You are BrandAid's expert proposal copywriter. Write a comprehensive, persuasive growth proposal for ${businessName}.
+  return `You are BrandAid's expert proposal copywriter. Write a comprehensive, persuasive growth proposal for ${ctx.businessName}.
 
-BUSINESS INFORMATION:
-- Business: ${businessName}
-- Industry: ${industry}
-- Website: ${website}
-- Address: ${address}
-- Revenue: ${revenue}
-- Monthly Traffic: ${traffic}
-- Current Leads: ${leads}
-- Existing CRM/Tools: ${crm}
-- Competitors: ${competitors}
+${baseInstructions(ctx)}
 
-DIGITAL ASSESSMENT RESULTS:
-- Website Speed Score: ${speedScore}/100
-- Lighthouse Performance: ${performance}/100
-- Lighthouse Accessibility: ${accessibility}/100
-- Lighthouse SEO: ${seo}/100
-- Lighthouse Best Practices: ${bestPractices}/100
-- Google Business Profile Rating: ${googleRating} (${googleReviews} reviews)
-- Google Profile Completeness: ${googleProfileScore}/100
-- Local SEO Score: ${localSeoScore}/100
+Generate ALL sections below as a single JSON object. Each section should be 2-4 paragraphs of polished, strategic copy.
+${JSON.stringify({
+  discoveryNotes: "Professional discovery summary based on business info. Include current state, market position, digital presence.",
+  painPoints: "3-5 specific pain points based on industry, scores, and current setup. Reference assessment data.",
+  goals: "3-5 strategic goals tied to measurable outcomes like revenue growth, lead generation, conversion improvement.",
+  executiveSummary: "Compelling 2-3 paragraph executive summary opening with the opportunity.",
+  aboutBrandAid: "2 paragraphs about BrandAid as strategic growth consultancy.",
+  whyBrandAid: "2 paragraphs on why they should choose BrandAid over competitors.",
+  ourProcess: "4-phase process description.",
+  businessSnapshot: "2 paragraphs about current business snapshot.",
+  criticalInformation: "2 paragraphs about critical gaps identified.",
+  websiteAnalysis: "3 paragraphs of website analysis based on Lighthouse scores.",
+  googleBusinessAnalysis: "2 paragraphs on Google Business Profile performance.",
+  localSeoAnalysis: "2 paragraphs on local SEO performance.",
+  servicesNarrative: "2-3 paragraphs per service explaining value.",
+  roiNarrative: "2 paragraphs on ROI expectations.",
+  pricingNarrative: "1 paragraph on pricing philosophy.",
+  faq: "5-6 relevant FAQs.",
+  nextSteps: "Clear next steps with urgency.",
+  coverLetter: "Personalized opening letter for this proposal.",
+  recommendations: "What We Recommend and Why section.",
+  serviceExplanations: "Contextual explanation per selected service."
+}, null, 2)}
 
-SERVICES BEING PITCHED: ${services}
-
-Generate the following sections. Write each section as 2-4 paragraphs of polished, strategic, persuasive copy. Use the business name naturally. Reference specific assessment scores and findings. Be confident and strategic, not salesy.
-
-Return ONLY a JSON object with these keys:
-{
-  "discoveryNotes": "Write a professional discovery summary based on the business info. Include what we know about their current state, market position, and digital presence. Write as if we conducted a thorough discovery session.",
-  "painPoints": "Write 3-5 specific pain points this business likely faces based on their industry, scores, and current setup. Be specific and reference the assessment data.",
-  "goals": "Write 3-5 strategic goals we should propose. Tie them to measurable outcomes like revenue growth, lead generation, conversion improvement.",
-  "executiveSummary": "A compelling 2-3 paragraph executive summary that opens with the opportunity, references key findings, and positions our solution.",
-  "aboutBrandAid": "Write about BrandAid as a strategic growth consultancy. Focus on systems-thinking, long-term value, and measurable results. 2 paragraphs.",
-  "whyBrandAid": "Write why ${businessName} should choose BrandAid over competitors. Reference our approach to their specific industry and challenges. 2 paragraphs.",
-  "ourProcess": "Describe BrandAid's 4-phase process: Discovery & Audit, Strategy Design, Implementation, Optimization. Make it feel structured and professional. 2 paragraphs.",
-  "businessSnapshot": "Write a narrative about their current business snapshot using the revenue, traffic, and lead data. Frame it as 'here's where you are now'. 2 paragraphs.",
-  "criticalInformation": "Write about the critical business information and gaps we've identified. Reference assessment scores. 2 paragraphs.",
-  "websiteAnalysis": "Write a detailed website analysis based on the Lighthouse scores. Explain what each score means and the business impact. Reference specific scores. 3 paragraphs.",
-  "googleBusinessAnalysis": "Write about their Google Business Profile performance. Reference rating, review count, profile completeness. Explain what competitors are doing better. 2 paragraphs.",
-  "localSeoAnalysis": "Write about local SEO performance. Reference the local SEO score. Explain how local search impacts their business. 2 paragraphs.",
-  "servicesNarrative": "Write a compelling narrative for each service being pitched: ${services}. For each, explain the problem it solves, expected outcomes, and timeline. 2-3 paragraphs per service.",
-  "roiNarrative": "Write about ROI expectations. Reference their current revenue and traffic. Frame the investment as a growth lever with specific expected returns. 2 paragraphs.",
-  "pricingNarrative": "Write about our pricing philosophy - value-based, transparent, designed for ROI. Frame pricing as an investment with measurable returns. 1 paragraph.",
-  "faq": "Write 5-6 relevant FAQs for this specific business and industry. Include questions about timeline, ROI, process, and ongoing support.",
-  "nextSteps": "Write clear next steps: schedule strategy call, complimentary audit, customized proposal finalization, kickoff. Make it feel urgent but not pushy. 1 paragraph."
-}
-
-IMPORTANT:
-- Reference the actual assessment scores in your analysis
-- Use the business name naturally throughout
-- Be strategic and confident, not salesy
-- Each section should flow naturally into the next
-- Do NOT use generic template language
-- Write as if you just completed a thorough discovery and audit
-- Return ONLY the JSON object, no other text`;
+IMPORTANT: Reference actual scores, use business name naturally, be strategic not salesy, return ONLY the JSON.`;
 }
 
 export function parseGeneratedContent(content: string): GeneratedContent {
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        ...parsed,
+        coverLetter: parsed.coverLetter || "",
+        recommendations: parsed.recommendations || "",
+        serviceExplanations: parsed.serviceExplanations || {},
+      };
     }
   } catch {}
 
@@ -123,5 +210,8 @@ export function parseGeneratedContent(content: string): GeneratedContent {
     pricingNarrative: "Our pricing is designed to deliver ROI within the first quarter.",
     faq: "Q: How long does a typical engagement?\nA: 6-12 weeks.\nQ: What industries do you serve?\nA: We specialize in healthcare, home services, and professional services.",
     nextSteps: "Let's schedule a strategy call to discuss your growth plan.",
+    coverLetter: "",
+    recommendations: "",
+    serviceExplanations: {},
   };
 }

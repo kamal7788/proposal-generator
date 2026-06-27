@@ -126,6 +126,32 @@ async function main() {
       timeline: "2-3 weeks for comprehensive analysis",
       sortOrder: 8,
     },
+    {
+      name: "Business Data Intelligence",
+      shortDescription: "Turn your data into actionable growth insights",
+      description:
+        "We transform raw business data into clear, actionable intelligence. Our analytics dashboards and reporting systems help you make informed decisions based on real performance metrics, not guesswork.",
+      outcomes: "Data-driven decisions, performance visibility, identified growth opportunities",
+      deliverables: "Analytics dashboard, custom reports, data integration, monthly insights",
+      useCases: "Businesses with scattered data, no performance visibility, gut-feel decision making",
+      pricingNotes: "Setup from $2,500; monthly analytics from $800",
+      proofPoints: "Clients report 28% faster decision-making and 22% revenue uplift from data-driven strategies",
+      timeline: "3-5 weeks for dashboard setup",
+      sortOrder: 9,
+    },
+    {
+      name: "Customer Reactivation",
+      shortDescription: "Re-engage lost customers and recover revenue",
+      description:
+        "We build automated reactivation campaigns that bring dormant customers back. Our systems identify at-risk and lapsed customers, then deliver personalized outreach that reignites their interest in your business.",
+      outcomes: "Recovered revenue, reactivated customer base, reduced acquisition costs",
+      deliverables: "Reactivation strategy, automated campaigns, performance tracking, A/B testing",
+      useCases: "Businesses with large inactive customer lists, declining repeat purchases, seasonal dips",
+      pricingNotes: "Campaign setup from $1,500; ongoing management from $600/month",
+      proofPoints: "Average 18% reactivation rate on dormant customer lists",
+      timeline: "2-3 weeks for campaign setup",
+      sortOrder: 10,
+    },
   ];
 
   for (const service of services) {
@@ -183,6 +209,13 @@ async function main() {
         "Q: How long does a typical engagement last?\nA: Most initial projects run 6-12 weeks, with ongoing support available.\n\nQ: Do you work with businesses in our industry?\nA: We work across service-based industries including healthcare, home services, professional services, and hospitality.\n\nQ: What makes you different from other agencies?\nA: We build systems, not just campaigns. Our focus is on sustainable, measurable growth.",
       category: "faq",
       sortOrder: 6,
+    },
+    {
+      title: "Terms & Conditions",
+      content:
+        "1. This proposal is valid for 30 days from the date of issue.\n2. All prices are exclusive of applicable taxes unless stated otherwise.\n3. Payment terms: 50% upfront, 50% upon completion, unless otherwise agreed.\n4. Project timelines begin upon receipt of signed agreement and initial payment.\n5. Scope changes will be documented via change order and may affect timeline and pricing.\n6. All work product and intellectual property transfer to the client upon full payment.\n7. Confidentiality: Both parties agree to maintain confidentiality of shared business information.\n8. BrandAid warrants all work for 90 days post-delivery against defects in workmanship.\n9. Cancellation: Client may cancel with 14 days written notice; work completed to date is billable.\n10. These terms are governed by the laws of Nepal.",
+      category: "legal",
+      sortOrder: 7,
     },
   ];
 

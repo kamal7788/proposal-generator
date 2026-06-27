@@ -14,7 +14,7 @@ interface Proposal {
 }
 
 export default function ProposalsList({ proposals: initial }: { proposals: Proposal[] }) {
-  const [filter, setFilter] = useState<"all" | "draft" | "published">("all");
+  const [filter, setFilter] = useState<"all" | "draft" | "complete">("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"updatedAt" | "businessName" | "status">("updatedAt");
 
@@ -48,7 +48,7 @@ export default function ProposalsList({ proposals: initial }: { proposals: Propo
       {/* Filter tabs */}
       <div className="flex items-center gap-4 mb-4">
         <div className="flex items-center gap-1 bg-white rounded-lg border border-[#c3cdd8]/50 p-1 w-fit">
-          {(["all", "draft", "published"] as const).map(f => (
+          {(["all", "draft", "complete"] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -56,7 +56,7 @@ export default function ProposalsList({ proposals: initial }: { proposals: Propo
                 filter === f ? "bg-[#004527] text-white" : "text-on-surface-variant hover:bg-surface"
               }`}
             >
-              {f === "all" ? "All" : f === "draft" ? "Draft" : "Published"}
+              {f === "all" ? "All" : f === "draft" ? "Draft" : "Complete"}
             </button>
           ))}
         </div>
@@ -111,14 +111,12 @@ export default function ProposalsList({ proposals: initial }: { proposals: Propo
                   </p>
                   <Badge
                     variant={
-                      proposal.status === "published"
+                      proposal.status === "complete"
                         ? "good"
-                        : proposal.status === "archived"
-                        ? "default"
                         : "warning"
                     }
                   >
-                    {proposal.status}
+                    {proposal.status === "complete" ? "Complete" : "Draft"}
                   </Badge>
                 </div>
                 <h3 className="text-[15px] font-semibold text-on-surface mb-1 line-clamp-1 font-[family-name:var(--font-display)]">
