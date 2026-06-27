@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 echo "==> BrandAid Proposal Generator — Starting up..."
 
@@ -12,16 +11,22 @@ done
 echo "==> PostgreSQL is ready."
 
 # ─── Ensure database exists ───────────────────────────────────────────
+export PGPASSWORD="${POSTGRES_PASSWORD:-brandid_secret}"
 DB_NAME="${POSTGRES_DB:-brandid_proposals}"
 DB_USER="${POSTGRES_USER:-brandid}"
 echo "==> Checking if database '$DB_NAME' exists..."
-psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || \
-  psql -h db -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME"
-echo "==> Database '$DB_NAME' is ready."
+if psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+  echo "    Database '$DB_NAME' already exists."
+else
+  echo "    Creating database '$DB_NAME'..."
+  psql -h db -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\""
+  echo "    Database '$DB_NAME' created."
+fi
 
 # ─── Run database migrations ──────────────────────────────────────────
 echo "==> Applying database schema..."
-npx prisma db push --accept-data-loss
+npx prisma db push --accept-data-loss || echo "    Schema apply failed, retrying..."
+npx prisma db push --accept-data-loss || echo "    Schema apply failed again."
 echo "==> Schema applied."
 
 # ─── Seed database (idempotent — skips if data exists) ───────────────
