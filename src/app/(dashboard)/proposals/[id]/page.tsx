@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ProposalActions from "@/components/proposals/ProposalActions";
-import ProposalEditor from "@/components/proposals/ProposalEditor";
+import DeleteProposalButton from "@/components/proposals/DeleteProposalButton";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,10 @@ export default async function ProposalDetailPage({
   const { id } = await params;
   const session = await auth();
   const userId = (session?.user as any)?.id;
+  const role = (session?.user as any)?.role;
 
   const proposal = await db.proposal.findUnique({
-    where: { id, userId },
+    where: { id },
     include: {
       services: { include: { service: true } },
       sections: { orderBy: { sortOrder: "asc" } },
@@ -29,6 +30,7 @@ export default async function ProposalDetailPage({
   });
 
   if (!proposal) notFound();
+  if (proposal.userId !== userId && role !== "admin") notFound();
 
   return (
     <div className="flex gap-6 h-[calc(100vh-48px)]">
@@ -56,14 +58,19 @@ export default async function ProposalDetailPage({
           </p>
         </div>
 
-        <ProposalActions
-          proposalId={proposal.id}
-          status={proposal.status}
-          shareSlug={proposal.shareSlug}
-        />
-
-        <div className="mt-4">
-          <ProposalEditor proposal={proposal} />
+        <div className="flex items-center gap-2 mb-4">
+          <ProposalActions
+            proposalId={proposal.id}
+            status={proposal.status}
+            shareSlug={proposal.shareSlug}
+          />
+          <Link href={`/proposals/${proposal.id}/edit`}>
+            <button className="px-3 py-1.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">edit</span>
+              Edit
+            </button>
+          </Link>
+          <DeleteProposalButton proposalId={proposal.id} isAdmin={role === "admin"} isOwner={proposal.userId === userId} />
         </div>
 
         <div className="mt-6 space-y-4">

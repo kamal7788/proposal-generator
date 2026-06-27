@@ -86,11 +86,21 @@ model Proposal {
   existingCrm           String?
   competitors           String?   @db.Text
   logoUrl               String?
+  currency              String    @default("USD")
+  websiteSpeedScore     Int?
+  lighthousePerformance Int?
+  lighthouseAccessibility Int?
+  lighthouseSeo         Int?
+  lighthouseBestPractices Int?
+  googleProfileScore    Int?
+  localSeoScore         Int?
   status                String    @default("draft")
   shareSlug             String    @unique
   passwordHash          String?
   generatedContent      Json?
   sectionsOrder         Json?
+  deletionRequested     Boolean   @default(false)
+  deletionReason        String?   @db.Text
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   services              ProposalService[]
@@ -114,6 +124,7 @@ model Service {
   proofPoints      String?           @db.Text
   timeline         String?
   addOns           String?           @db.Text
+  pricingPackages  Json?
   isActive         Boolean           @default(true)
   sortOrder        Int               @default(0)
   createdAt        DateTime          @default(now())
@@ -125,11 +136,15 @@ model Service {
 }
 
 model ProposalService {
-  id         String   @id @default(cuid())
-  proposalId String
-  serviceId  String
-  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  proposalId    String
+  serviceId     String
+  proposal      Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  service       Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  packageName   String?
+  packagePrice  Float?
+  customPrice   Float?
+  notes         String?  @db.Text
 
   @@unique([proposalId, serviceId])
   @@map("proposal_services")

@@ -14,9 +14,11 @@ interface Assumption {
 export default function RevenueOpportunity({
   assumptions,
   revenue,
+  currency = "USD",
 }: {
   assumptions: Assumption[];
   revenue: string | null;
+  currency?: string;
 }) {
   const avgValue = revenue ? parseInt(revenue.replace(/[^0-9]/g, "")) / 12 || 5000 : 5000;
 
@@ -32,6 +34,15 @@ export default function RevenueOpportunity({
   const expected = calcScenario("expectedValue");
   const high = calcScenario("highValue");
 
+  if (assumptions.length === 0) {
+    return (
+      <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
+        <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Revenue Opportunity</h2>
+        <p className="text-[13px] text-on-surface-variant">Add revenue assumptions in the editor to see ROI projections.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
       <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Revenue Opportunity</h2>
@@ -39,7 +50,7 @@ export default function RevenueOpportunity({
       {/* Impact hero card */}
       <div className="bg-gradient-to-br from-[#004527] to-[#003019] rounded-2xl p-8 text-white mb-8">
         <p className="text-white/70 text-[13px] mb-1">Projected Monthly Revenue Uplift</p>
-        <p className="text-4xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected)}</p>
+        <p className="text-4xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected, currency)}</p>
         <p className="text-white/60 text-[12px] mt-1">Expected scenario based on your assumptions</p>
       </div>
 
@@ -47,17 +58,17 @@ export default function RevenueOpportunity({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl p-5 border border-[#c3cdd8]/50 text-center">
           <p className="text-[12px] text-on-surface-variant mb-1">Conservative</p>
-          <p className="text-2xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(low)}</p>
+          <p className="text-2xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(low, currency)}</p>
           <p className="text-[11px] text-on-surface-variant mt-1">monthly uplift</p>
         </div>
         <div className="bg-[#004527] rounded-xl p-5 text-center text-white">
           <p className="text-[12px] text-white/70 mb-1">Expected</p>
-          <p className="text-2xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected)}</p>
+          <p className="text-2xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected, currency)}</p>
           <p className="text-[11px] text-white/60 mt-1">monthly uplift</p>
         </div>
         <div className="bg-white rounded-xl p-5 border border-[#c3cdd8]/50 text-center">
           <p className="text-[12px] text-on-surface-variant mb-1">Optimistic</p>
-          <p className="text-2xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(high)}</p>
+          <p className="text-2xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(high, currency)}</p>
           <p className="text-[11px] text-on-surface-variant mt-1">monthly uplift</p>
         </div>
       </div>

@@ -1,13 +1,29 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { generateSlug } from "@/lib/utils";
+import { notFound, redirect } from "next/navigation";
+import { Header } from "@/components/layout/Header";
 import ProposalForm from "@/components/proposals/ProposalForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewProposalPage() {
+export default async function EditProposalPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const session = await auth();
+  const userId = (session?.user as any)?.id;
+
+  const proposal = await db.proposal.findUnique({
+    where: { id, userId },
+    include: {
+      services: { include: { service: true } },
+      sections: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  if (!proposal) notFound();
 
   const services = await db.service.findMany({
     where: { isActive: true },
@@ -18,15 +34,15 @@ export default async function NewProposalPage() {
     orderBy: { sortOrder: "asc" },
   });
 
-  async function createProposal(data: any) {
+  async function updateProposal(data: any) {
     "use server";
 
     const session = await auth();
     const userId = (session?.user as any)?.id;
 
-    const proposal = await db.proposal.create({
+    await db.proposal.update({
+      where: { id, userId },
       data: {
-        userId,
         businessName: data.businessName,
         contactName: data.contactName || null,
         contactEmail: data.contactEmail || null,
@@ -54,36 +70,56 @@ export default async function NewProposalPage() {
         lighthouseBestPractices: data.lighthouseBestPractices ? parseInt(data.lighthouseBestPractices) : null,
         googleProfileScore: data.googleProfileScore ? parseInt(data.googleProfileScore) : null,
         localSeoScore: data.localSeoScore ? parseInt(data.localSeoScore) : null,
-        shareSlug: generateSlug(),
-        services: {
-          create: data.serviceIds?.map((serviceId: string) => ({
-            serviceId,
-          })) || [],
-        },
-        sections: {
-          create: data.sectionIds?.map((sectionId: string, index: number) => {
-            const section = reusableSections.find((s) => s.id === sectionId);
-            return {
-              reusableSectionId: sectionId,
-              title: section?.title || "",
-              content: section?.content || "",
-              sortOrder: index,
-              type: "reusable",
-            };
-          }) || [],
-        },
       },
     });
 
-    redirect(`/proposals/${proposal.id}`);
+    // Sync services
+    await db.proposalService.deleteMany({ where: { proposalId: id } });
+    if (data.serviceIds?.length) {
+      await db.proposalService.createMany({
+        data: data.serviceIds.map((serviceId: string) => ({
+          proposalId: id,
+          serviceId,
+        })),
+      });
+    }
+
+    // Sync sections
+    await db.proposalSection.deleteMany({ where: { proposalId: id } });
+    if (data.sectionIds?.length) {
+      for (const sectionId of data.sectionIds) {
+        const section = reusableSections.find(s => s.id === sectionId);
+        await db.proposalSection.create({
+          data: {
+            proposalId: id,
+            reusableSectionId: sectionId,
+            title: section?.title || "",
+            content: section?.content || "",
+            sortOrder: data.sectionIds.indexOf(sectionId),
+            type: "reusable",
+          },
+        });
+      }
+    }
+
+    redirect(`/proposals/${id}`);
   }
+
+  const initialData = {
+    ...proposal,
+    serviceIds: proposal.services.map(s => s.serviceId),
+    sectionIds: proposal.sections.map(s => s.reusableSectionId).filter(Boolean),
+  };
 
   return (
     <div>
+      <Header title={`Edit: ${proposal.businessName}`} subtitle="Update proposal details" />
       <ProposalForm
         services={services}
         sections={reusableSections}
-        onSubmit={createProposal}
+        onSubmit={updateProposal}
+        initialData={initialData}
+        isEdit
       />
     </div>
   );

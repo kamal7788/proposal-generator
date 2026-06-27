@@ -3,6 +3,7 @@
 import CoverHero from "./CoverHero";
 import ExecutiveSummary from "./ExecutiveSummary";
 import BusinessSnapshot from "./BusinessSnapshot";
+import AssessmentScores from "./AssessmentScores";
 import AuditFindings from "./AuditFindings";
 import RevenueOpportunity from "./RevenueOpportunity";
 import RecommendedServices from "./RecommendedServices";
@@ -23,6 +24,14 @@ interface ProposalData {
   currentLeadVolume: string | null;
   currentMonthlyTraffic: string | null;
   approximateRevenue: string | null;
+  currency: string;
+  websiteSpeedScore: number | null;
+  lighthousePerformance: number | null;
+  lighthouseAccessibility: number | null;
+  lighthouseSeo: number | null;
+  lighthouseBestPractices: number | null;
+  googleProfileScore: number | null;
+  localSeoScore: number | null;
   generatedContent: any;
   services: { service: { name: string; description: string | null; shortDescription: string | null; pricingNotes: string | null; outcomes: string | null; deliverables: string | null; proofPoints: string | null; timeline: string | null } }[];
   sections: { title: string; content: string; isVisible: boolean }[];
@@ -34,6 +43,11 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
   const generated = (proposal.generatedContent as any) || {};
   const services = proposal.services.map((ps) => ps.service);
   const visibleSections = proposal.sections.filter((s) => s.isVisible);
+  const currency = proposal.currency || "USD";
+
+  const hasAssessmentScores = proposal.websiteSpeedScore || proposal.lighthousePerformance ||
+    proposal.lighthouseAccessibility || proposal.lighthouseSeo || proposal.lighthouseBestPractices ||
+    proposal.googleProfileScore || proposal.localSeoScore;
 
   return (
     <div className="min-h-screen bg-white">
@@ -48,6 +62,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
           </div>
           <div className="flex items-center gap-4 text-[13px] text-on-surface-variant">
             <a href="#executive-summary" className="hover:text-on-surface transition-colors">Summary</a>
+            {hasAssessmentScores && <a href="#assessment" className="hover:text-on-surface transition-colors">Assessment</a>}
             <a href="#audit" className="hover:text-on-surface transition-colors">Audit</a>
             <a href="#services" className="hover:text-on-surface transition-colors">Services</a>
             <a href="#roi" className="hover:text-on-surface transition-colors">ROI</a>
@@ -73,7 +88,22 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
           monthlyTraffic={proposal.currentMonthlyTraffic}
           revenue={proposal.approximateRevenue}
           industry={proposal.industry}
+          currency={currency}
         />
+      )}
+
+      {hasAssessmentScores && (
+        <div id="assessment">
+          <AssessmentScores
+            websiteSpeedScore={proposal.websiteSpeedScore}
+            lighthousePerformance={proposal.lighthousePerformance}
+            lighthouseAccessibility={proposal.lighthouseAccessibility}
+            lighthouseSeo={proposal.lighthouseSeo}
+            lighthouseBestPractices={proposal.lighthouseBestPractices}
+            googleProfileScore={proposal.googleProfileScore}
+            localSeoScore={proposal.localSeoScore}
+          />
+        </div>
       )}
 
       {generated.keyFindings && (
@@ -98,12 +128,11 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
       </div>
 
       <div id="roi">
-        {proposal.assumptions.length > 0 && (
-          <RevenueOpportunity
-            assumptions={proposal.assumptions}
-            revenue={proposal.approximateRevenue}
-          />
-        )}
+        <RevenueOpportunity
+          assumptions={proposal.assumptions}
+          revenue={proposal.approximateRevenue}
+          currency={currency}
+        />
       </div>
 
       {visibleSections.filter(s => s.title.toLowerCase().includes("why")).length > 0 && (

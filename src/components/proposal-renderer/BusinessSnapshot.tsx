@@ -3,11 +3,13 @@ export default function BusinessSnapshot({
   monthlyTraffic,
   revenue,
   industry,
+  currency = "USD",
 }: {
   leadVolume: string | null;
   monthlyTraffic: string | null;
   revenue: string | null;
   industry: string | null;
+  currency?: string;
 }) {
   const metrics = [
     { label: "Monthly Leads", value: leadVolume, icon: "trending_up" },

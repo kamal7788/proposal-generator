@@ -16,6 +16,7 @@ interface Service {
   outcomes: string | null;
   deliverables: string | null;
   pricingNotes: string | null;
+  pricingPackages: any;
   proofPoints: string | null;
   timeline: string | null;
   isActive: boolean;
@@ -35,6 +36,11 @@ export default function ServiceManager({ services: initialServices }: { services
     const formData = new FormData(e.currentTarget);
     const data: any = {};
     formData.forEach((value, key) => { data[key] = value; });
+
+    // Parse pricing packages
+    if (data.pricingPackages) {
+      try { data.pricingPackages = JSON.parse(data.pricingPackages); } catch { data.pricingPackages = null; }
+    }
 
     try {
       if (editing) {
@@ -134,6 +140,13 @@ export default function ServiceManager({ services: initialServices }: { services
           <Input name="pricingNotes" label="Pricing Notes" defaultValue={editing?.pricingNotes || ""} />
           <Input name="proofPoints" label="Proof Points / Metrics" defaultValue={editing?.proofPoints || ""} />
           <Input name="timeline" label="Timeline" defaultValue={editing?.timeline || ""} />
+          <Textarea
+            name="pricingPackages"
+            label="Pricing Packages (JSON)"
+            defaultValue={editing?.pricingPackages ? JSON.stringify(editing.pricingPackages, null, 2) : ""}
+            rows={4}
+            placeholder='[{"name": "Starter", "price": "$2,500", "features": ["Feature 1"]}, {"name": "Premium", "price": "$5,000", "features": ["Feature 1", "Feature 2"]}]'
+          />
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }}>
               Cancel

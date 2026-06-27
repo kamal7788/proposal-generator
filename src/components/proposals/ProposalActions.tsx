@@ -46,6 +46,20 @@ export default function ProposalActions({
     setLoading(null);
   }
 
+  async function generateAI() {
+    setLoading("ai");
+    const res = await fetch(`/api/proposals/${proposalId}/generate`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      router.refresh();
+    } else {
+      const data = await res.json();
+      alert(data.error || "AI generation failed");
+    }
+    setLoading(null);
+  }
+
   async function copyShareLink() {
     const url = `${window.location.origin}/p/${shareSlug}`;
     await navigator.clipboard.writeText(url);
@@ -53,7 +67,7 @@ export default function ProposalActions({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       <Button variant="outline" size="sm" onClick={copyShareLink}>
         Copy Share Link
       </Button>
@@ -64,6 +78,14 @@ export default function ProposalActions({
         onClick={generatePdf}
       >
         Export PDF
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        loading={loading === "ai"}
+        onClick={generateAI}
+      >
+        Generate AI Content
       </Button>
       {status === "draft" && (
         <Button
