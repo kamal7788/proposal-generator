@@ -56,16 +56,20 @@ const bcrypt = require('bcryptjs');
 (async () => {
   const prisma = new PrismaClient();
 
-  // Admin user
+  // Admin user — always sync password from env
+  const hash = await bcrypt.hash('${ADMIN_PASSWORD}', 10);
   const existing = await prisma.user.findUnique({ where: { email: '${ADMIN_EMAIL}' } });
   if (!existing) {
-    const hash = await bcrypt.hash('${ADMIN_PASSWORD}', 10);
     await prisma.user.create({
       data: { name: 'Admin', email: '${ADMIN_EMAIL}', passwordHash: hash, role: 'admin' }
     });
     console.log('    Created admin user: ${ADMIN_EMAIL}');
   } else {
-    console.log('    Admin user already exists: ${ADMIN_EMAIL}');
+    await prisma.user.update({
+      where: { email: '${ADMIN_EMAIL}' },
+      data: { passwordHash: hash }
+    });
+    console.log('    Admin user password synced: ${ADMIN_EMAIL}');
   }
 
   // Seed services
