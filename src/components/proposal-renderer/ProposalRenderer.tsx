@@ -2,47 +2,20 @@
 
 import CoverHero from "./CoverHero";
 import ExecutiveSummary from "./ExecutiveSummary";
-import BusinessSnapshot from "./BusinessSnapshot";
-import AssessmentScores from "./AssessmentScores";
-import LocalSeoGrid from "./LocalSeoGrid";
+import BusinessAtGlance from "./BusinessAtGlance";
+import CriticalInformation from "./CriticalInformation";
+import TechnoStack from "./TechnoStack";
 import GoogleInsightsPanel from "./GoogleInsightsPanel";
+import Listings from "./Listings";
+import Reputation from "./Reputation";
+import WebsitePerformance from "./WebsitePerformance";
+import LocalSeoGrid from "./LocalSeoGrid";
+import LocalRankTracker from "./LocalRankTracker";
 import AuditFindings from "./AuditFindings";
 import RevenueOpportunity from "./RevenueOpportunity";
-import RecommendedServices from "./RecommendedServices";
 import WhyBrandAid from "./WhyBrandAid";
 import NextSteps from "./NextSteps";
 import { formatCurrency } from "@/lib/utils";
-
-interface ProposalData {
-  id: string;
-  businessName: string;
-  contactName: string | null;
-  contactEmail: string | null;
-  websiteUrl: string | null;
-  industry: string | null;
-  serviceArea: string | null;
-  painPoints: string | null;
-  goals: string | null;
-  discoveryNotes: string | null;
-  currentLeadVolume: string | null;
-  currentMonthlyTraffic: string | null;
-  approximateRevenue: string | null;
-  currency: string;
-  websiteSpeedScore: number | null;
-  lighthousePerformance: number | null;
-  lighthouseAccessibility: number | null;
-  lighthouseSeo: number | null;
-  lighthouseBestPractices: number | null;
-  googleProfileScore: number | null;
-  localSeoScore: number | null;
-  localSeoGrid: any;
-  googleBusinessData: any;
-  generatedContent: any;
-  services: { service: { name: string; description: string | null; shortDescription: string | null; pricingNotes: string | null; outcomes: string | null; deliverables: string | null; proofPoints: string | null; timeline: string | null; imageUrl: string | null }; packageName: string | null; packagePrice: number | null; customPrice: number | null; }[];
-  sections: { title: string; content: string; isVisible: boolean }[];
-  auditItems: { title: string; category: string; currentIssue: string | null; whyItMatters: string | null; recommendations: string | null; revenueImpact: string | null; priority: string }[];
-  assumptions: { type: string; label: string; lowValue: number; expectedValue: number; highValue: number; unit: string }[];
-}
 
 function ServiceROI({ service, currency }: { service: any; currency: string }) {
   const price = service.customPrice || service.packagePrice || 0;
@@ -70,19 +43,16 @@ function ServiceROI({ service, currency }: { service: any; currency: string }) {
   );
 }
 
-export default function ProposalRenderer({ proposal }: { proposal: ProposalData }) {
-  const generated = (proposal.generatedContent as any) || {};
-  const services = proposal.services.map((ps) => ({ ...ps.service, customPrice: ps.customPrice, packagePrice: ps.packagePrice, packageName: ps.packageName }));
-  const visibleSections = proposal.sections.filter((s) => s.isVisible);
-  const currency = proposal.currency || "NPR";
-  const googleData = proposal.googleBusinessData as any;
-  const seoGrid = proposal.localSeoGrid as any[] || [];
+export default function ProposalRenderer({ proposal }: { proposal: any }) {
+  const generated = (proposal?.generatedContent as any) || {};
+  const services = (proposal?.services || []).map((ps: any) => ({ ...ps.service, customPrice: ps.customPrice, packagePrice: ps.packagePrice, packageName: ps.packageName, notes: ps.notes }));
+  const currency = proposal?.currency || "NPR";
+  const googleData = proposal?.googleBusinessData as any;
+  const seoGrid = (proposal?.localSeoGrid as any[]) || [];
+  const auditItems = proposal?.auditItems || [];
+  const assumptions = proposal?.assumptions || [];
 
-  const hasAssessmentScores = proposal.websiteSpeedScore || proposal.lighthousePerformance ||
-    proposal.lighthouseAccessibility || proposal.lighthouseSeo || proposal.lighthouseBestPractices ||
-    proposal.googleProfileScore || proposal.localSeoScore;
-
-  const totalPackagePrice = proposal.services.reduce((sum, ps) => sum + (ps.customPrice || ps.packagePrice || 0), 0);
+  const totalPackagePrice = (proposal?.services || []).reduce((sum: number, ps: any) => sum + (ps.customPrice || ps.packagePrice || 0), 0);
 
   return (
     <div className="min-h-screen bg-white">
@@ -95,7 +65,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
           <div className="flex items-center gap-4 text-[13px] text-on-surface-variant">
             <a href="#executive-summary" className="hover:text-on-surface transition-colors">Summary</a>
             <a href="#about-us" className="hover:text-on-surface transition-colors">About Us</a>
-            <a href="#business-snapshot" className="hover:text-on-surface transition-colors">Business</a>
+            <a href="#business-glance" className="hover:text-on-surface transition-colors">Business</a>
             <a href="#analysis" className="hover:text-on-surface transition-colors">Analysis</a>
             <a href="#services" className="hover:text-on-surface transition-colors">Services</a>
             <a href="#pricing" className="hover:text-on-surface transition-colors">Pricing</a>
@@ -105,14 +75,14 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
       </nav>
 
       {/* 1. Cover */}
-      <CoverHero businessName={proposal.businessName} contactName={proposal.contactName} />
+      <CoverHero businessName={proposal?.businessName} contactName={proposal?.contactName} />
 
       {/* 2. Executive Summary */}
       <div id="executive-summary">
         {generated.executiveSummary && <ExecutiveSummary content={generated.executiveSummary} />}
       </div>
 
-      {/* 3. About BrandAid + Why BrandAid + Our Process + Testimonials */}
+      {/* 3. About BrandAid + Why BrandAid + Our Process */}
       <div id="about-us">
         {generated.aboutBrandAid && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
@@ -135,81 +105,73 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
         <WhyBrandAid />
       </div>
 
-      {/* 4. Business at a Glance */}
-      <div id="business-snapshot">
-        {(proposal.currentLeadVolume || proposal.currentMonthlyTraffic || proposal.approximateRevenue) && (
-          <BusinessSnapshot
-            leadVolume={proposal.currentLeadVolume}
-            monthlyTraffic={proposal.currentMonthlyTraffic}
-            revenue={proposal.approximateRevenue}
-            industry={proposal.industry}
-            currency={currency}
-          />
-        )}
-        {generated.businessSnapshot && (
-          <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.businessSnapshot}</p>
-          </div>
-        )}
+      {/* 4. Business at a Glance - Score Breakdown */}
+      <div id="business-glance">
+        <div className="py-8">
+          <BusinessAtGlance proposal={proposal} />
+        </div>
       </div>
 
-      {/* 5. Critical Information */}
-      {generated.criticalInformation && (
-        <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
-          <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Critical Business Information</h2>
-          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.criticalInformation}</p>
+      {/* 5. Business Critical Information */}
+      <div id="critical-info">
+        <div className="py-8">
+          <CriticalInformation proposal={proposal} />
         </div>
-      )}
+      </div>
 
-      {/* 6. Analysis: Website, Google Profile, Local SEO */}
-      <div id="analysis">
-        {hasAssessmentScores && (
-          <AssessmentScores
-            websiteSpeedScore={proposal.websiteSpeedScore}
-            lighthousePerformance={proposal.lighthousePerformance}
-            lighthouseAccessibility={proposal.lighthouseAccessibility}
-            lighthouseSeo={proposal.lighthouseSeo}
-            lighthouseBestPractices={proposal.lighthouseBestPractices}
-            googleProfileScore={proposal.googleProfileScore}
-            localSeoScore={proposal.localSeoScore}
-          />
-        )}
-        {generated.websiteAnalysis && (
-          <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
-            <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Website Analysis</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.websiteAnalysis}</p>
-          </div>
-        )}
+      {/* 6. Techno Stack Analysis */}
+      <div id="techno-stack">
+        <div className="py-8">
+          <TechnoStack proposal={proposal} />
+        </div>
+      </div>
+
+      {/* 7. Google Business Profile */}
+      <div id="gbp">
         {googleData && <GoogleInsightsPanel data={googleData} />}
-        {generated.googleBusinessAnalysis && (
-          <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
-            <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Google Business Profile Analysis</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.googleBusinessAnalysis}</p>
-          </div>
-        )}
-        {seoGrid.length > 0 && <LocalSeoGrid grid={seoGrid} businessName={proposal.businessName} />}
-        {generated.localSeoAnalysis && (
-          <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
-            <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Local SEO Analysis</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.localSeoAnalysis}</p>
-          </div>
-        )}
       </div>
 
-      {/* 7. Key Findings */}
-      {generated.keyFindings && (
-        <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
-          <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Key Findings</h2>
-          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.keyFindings}</p>
+      {/* 8. Listings */}
+      <div id="listings">
+        <div className="py-8">
+          <Listings proposal={proposal} />
         </div>
-      )}
-
-      {/* 8. Audit Findings */}
-      <div id="audit">
-        {proposal.auditItems.length > 0 && <AuditFindings items={proposal.auditItems} />}
       </div>
 
-      {/* 9. Services + ROI per service */}
+      {/* 9. Reputation */}
+      <div id="reputation">
+        <div className="py-8">
+          <Reputation proposal={proposal} />
+        </div>
+      </div>
+
+      {/* 10. Website Performance */}
+      <div id="website-performance">
+        <div className="py-8">
+          <WebsitePerformance proposal={proposal} />
+        </div>
+      </div>
+
+      {/* 11. SEO Analysis - Local SEO Grid + Local Rank Tracker */}
+      <div id="analysis">
+        {seoGrid.length > 0 && (
+          <div className="py-8">
+            <LocalSeoGrid grid={seoGrid} businessName={proposal?.businessName} />
+          </div>
+        )}
+        {proposal?.competitors && (
+          <div className="py-8">
+            <LocalRankTracker proposal={proposal} />
+          </div>
+        )}
+      </div>
+
+      {/* 12. Audit Findings */}
+      <div id="audit">
+        {auditItems.length > 0 && <AuditFindings items={auditItems} />}
+      </div>
+
+      {/* 13. Services + ROI per service */}
       <div id="services">
         {generated.servicesNarrative && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
@@ -221,21 +183,21 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Service ROI Breakdown</h2>
             <div className="space-y-3">
-              {services.map((s, i) => <ServiceROI key={i} service={s} currency={currency} />)}
+              {services.map((s: any, i: number) => <ServiceROI key={i} service={s} currency={currency} />)}
             </div>
           </div>
         )}
-        <RevenueOpportunity assumptions={proposal.assumptions} revenue={proposal.approximateRevenue} currency={currency} />
+        <RevenueOpportunity assumptions={assumptions} revenue={proposal?.approximateRevenue} currency={currency} />
       </div>
 
-      {/* 10. Pricing / Package */}
+      {/* 14. Pricing / Package */}
       <div id="pricing">
         {totalPackagePrice > 0 && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Investment Summary</h2>
             <div className="bg-white rounded-xl border border-[#c3cdd8]/50 p-6">
               <div className="space-y-3">
-                {services.map((s, i) => {
+                {services.map((s: any, i: number) => {
                   const price = s.customPrice || s.packagePrice || 0;
                   if (!price) return null;
                   return (
@@ -261,7 +223,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
         )}
       </div>
 
-      {/* 11. FAQ */}
+      {/* 15. FAQ */}
       {generated.faq && (
         <div id="faq" className="py-16 px-8 border-b border-[#c3cdd8]/30">
           <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Frequently Asked Questions</h2>
@@ -269,7 +231,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
         </div>
       )}
 
-      {/* 12. Next Steps */}
+      {/* 16. Next Steps */}
       {generated.nextSteps && <NextSteps content={generated.nextSteps} />}
 
       {/* Footer */}
@@ -278,7 +240,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
         <h3 className="text-lg font-semibold font-[family-name:var(--font-display)]">BrandAid</h3>
         <p className="text-sm text-white/70 mt-1">Strategic Growth Consultancy</p>
         <p className="text-xs text-white/50 mt-4">
-          This proposal is confidential and prepared exclusively for {proposal.businessName}
+          This proposal is confidential and prepared exclusively for {proposal?.businessName}
         </p>
       </div>
     </div>
