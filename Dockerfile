@@ -29,6 +29,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
+RUN npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/schema.sql
 RUN npm run build
 
 FROM base AS runner
@@ -44,9 +45,9 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 COPY --from=builder /app/node_modules/.package-lock.json ./node_modules/.package-lock.json
+COPY --from=builder /app/prisma/schema.sql ./prisma/schema.sql
 
 COPY --from=builder /app/start.sh ./start.sh
 RUN chmod +x ./start.sh

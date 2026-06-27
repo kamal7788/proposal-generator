@@ -12,27 +12,34 @@ echo "==> PostgreSQL is ready."
 
 # ─── Ensure database exists ───────────────────────────────────────────
 export PGPASSWORD="${POSTGRES_PASSWORD:-brandid_secret}"
+DB_HOST="db"
 DB_USER="${POSTGRES_USER:-brandid}"
 
-# Extract DB name from DATABASE_URL
 if [ -n "$DATABASE_URL" ]; then
   DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
 else
   DB_NAME="${POSTGRES_DB:-brandid}"
 fi
+echo "==> Database: '$DB_NAME' on '$DB_HOST' as '$DB_USER'"
+
 echo "==> Checking if database '$DB_NAME' exists..."
-if psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
-  echo "    Database '$DB_NAME' already exists."
+if psql -h "$DB_HOST" -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+  echo "    Database exists."
 else
   echo "    Creating database '$DB_NAME'..."
-  psql -h db -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\""
-  echo "    Database '$DB_NAME' created."
+  psql -h "$DB_HOST" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\""
+  echo "    Database created."
 fi
 
-# ─── Run database migrations ──────────────────────────────────────────
+# ─── Apply schema via psql ───────────────────────────────────────────
 echo "==> Applying database schema..."
-npx prisma db push --accept-data-loss --skip-generate
-echo "==> Schema applied (exit code: $?)."
+if [ -f prisma/schema.sql ]; then
+  psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f prisma/schema.sql
+  echo "==> Schema applied via SQL."
+else
+  echo "    ERROR: prisma/schema.sql not found!"
+  ls -la prisma/
+fi
 
 # ─── Seed database ───────────────────────────────────────────────────
 echo "==> Seeding database..."
