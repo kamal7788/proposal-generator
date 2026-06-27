@@ -42,8 +42,37 @@ if [ "$TABLE_COUNT" = "0" ]; then
     echo "    ERROR: prisma/schema.sql not found!"
   fi
 else
-  echo "==> Schema already exists ($TABLE_COUNT tables), skipping."
+  echo "==> Schema already exists ($TABLE_COUNT tables), running migrations..."
 fi
+
+# ─── Add missing columns (idempotent migrations) ──────────────────────
+echo "==> Running column migrations..."
+psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" <<'MIGRATION_SQL'
+DO $$ BEGIN
+  -- proposals: new columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'currency') THEN ALTER TABLE proposals ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'websiteSpeedScore') THEN ALTER TABLE proposals ADD COLUMN websiteSpeedScore INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'lighthousePerformance') THEN ALTER TABLE proposals ADD COLUMN lighthousePerformance INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'lighthouseAccessibility') THEN ALTER TABLE proposals ADD COLUMN lighthouseAccessibility INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'lighthouseSeo') THEN ALTER TABLE proposals ADD COLUMN lighthouseSeo INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'lighthouseBestPractices') THEN ALTER TABLE proposals ADD COLUMN lighthouseBestPractices INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'googleProfileScore') THEN ALTER TABLE proposals ADD COLUMN googleProfileScore INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'localSeoScore') THEN ALTER TABLE proposals ADD COLUMN localSeoScore INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'deletionRequested') THEN ALTER TABLE proposals ADD COLUMN deletionRequested BOOLEAN NOT NULL DEFAULT false; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'deletionReason') THEN ALTER TABLE proposals ADD COLUMN deletionReason TEXT; END IF;
+  -- services: pricingPackages
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'services' AND column_name = 'pricingPackages') THEN ALTER TABLE services ADD COLUMN pricingPackages JSONB; END IF;
+  -- proposalServices: packageName, packagePrice, customPrice, notes
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposalServices' AND column_name = 'packageName') THEN ALTER TABLE proposalServices ADD COLUMN packageName TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposalServices' AND column_name = 'packagePrice') THEN ALTER TABLE proposalServices ADD COLUMN packagePrice TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposalServices' AND column_name = 'customPrice') THEN ALTER TABLE proposalServices ADD COLUMN customPrice TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposalServices' AND column_name = 'notes') THEN ALTER TABLE proposalServices ADD COLUMN notes TEXT; END IF;
+  -- proposals: discoveryNotes
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proposals' AND column_name = 'discoveryNotes') THEN ALTER TABLE proposals ADD COLUMN discoveryNotes TEXT; END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Migration step skipped: %', SQLERRM;
+END $$;
+MIGRATION_SQL
+echo "==> Column migrations complete."
 
 # ─── Seed + admin user ────────────────────────────────────────────────
 echo "==> Seeding database..."
