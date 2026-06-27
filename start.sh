@@ -14,11 +14,11 @@ echo "==> PostgreSQL is ready."
 export PGPASSWORD="${POSTGRES_PASSWORD:-brandid_secret}"
 DB_USER="${POSTGRES_USER:-brandid}"
 
-# Extract DB name from DATABASE_URL (handles any naming)
+# Extract DB name from DATABASE_URL
 if [ -n "$DATABASE_URL" ]; then
   DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
 else
-  DB_NAME="${POSTGRES_DB:-brandid_proposals}"
+  DB_NAME="${POSTGRES_DB:-brandid}"
 fi
 echo "==> Checking if database '$DB_NAME' exists..."
 if psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
@@ -31,16 +31,14 @@ fi
 
 # ─── Run database migrations ──────────────────────────────────────────
 echo "==> Applying database schema..."
-npx prisma db push --accept-data-loss || echo "    Schema apply failed, retrying..."
-npx prisma db push --accept-data-loss || echo "    Schema apply failed again."
-echo "==> Schema applied."
+npx prisma db push --accept-data-loss --skip-generate
+echo "==> Schema applied (exit code: $?)."
 
-# ─── Seed database (idempotent — skips if data exists) ───────────────
+# ─── Seed database ───────────────────────────────────────────────────
 echo "==> Seeding database..."
 npx prisma db seed || echo "    Seed skipped or already populated."
-echo "==> Seed complete."
 
-# ─── Create admin user if it doesn't exist ────────────────────────────
+# ─── Create admin user ────────────────────────────────────────────────
 echo "==> Ensuring admin user exists..."
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@brandid.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"

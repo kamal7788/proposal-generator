@@ -7,6 +7,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-brandid}:${POSTGRES_PASSWORD:-brandid_secret}@db:5432/${POSTGRES_DB:-brandid_proposals}
       - AUTH_SECRET=${AUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - AUTH_TRUST_HOST=true
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@brandid.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
