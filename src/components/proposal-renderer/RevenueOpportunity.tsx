@@ -14,7 +14,7 @@ interface Assumption {
 export default function RevenueOpportunity({
   assumptions,
   revenue,
-  currency = "USD",
+  currency = "NPR",
 }: {
   assumptions: Assumption[];
   revenue: string | null;

@@ -72,7 +72,7 @@ CREATE TABLE "proposals" (
     "existingCrm" TEXT,
     "competitors" TEXT,
     "logoUrl" TEXT,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'NPR',
     "websiteSpeedScore" INTEGER,
     "lighthousePerformance" INTEGER,
     "lighthouseAccessibility" INTEGER,

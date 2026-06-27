@@ -11,7 +11,7 @@ export default async function SectionsPage() {
 
   return (
     <div>
-      <Header title="Reusable Sections" subtitle="Manage proposal content blocks" />
+      <Header title="Sections" subtitle="Manage reusable proposal content blocks" />
       <SectionManager sections={sections} />
     </div>
   );

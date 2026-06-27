@@ -86,7 +86,7 @@ model Proposal {
   existingCrm           String?
   competitors           String?   @db.Text
   logoUrl               String?
-  currency              String    @default("USD")
+  currency              String    @default("NPR")
   websiteSpeedScore     Int?
   lighthousePerformance Int?
   lighthouseAccessibility Int?

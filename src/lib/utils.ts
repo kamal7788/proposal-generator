@@ -12,16 +12,16 @@ export function generateSlug(): string {
 }
 
 export const CURRENCIES = [
+  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
   { code: "USD", symbol: "$", name: "US Dollar" },
   { code: "AUD", symbol: "A$", name: "Australian Dollar" },
-  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
   { code: "EUR", symbol: "€", name: "Euro" },
   { code: "GBP", symbol: "£", name: "British Pound" },
 ];
 
-export function formatCurrency(amount: number, currencyCode: string = "USD"): string {
+export function formatCurrency(amount: number, currencyCode: string = "NPR"): string {
   const currency = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0];
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-NP", {
     style: "currency",
     currency: currency.code,
     minimumFractionDigits: 0,
@@ -30,7 +30,7 @@ export function formatCurrency(amount: number, currencyCode: string = "USD"): st
 }
 
 export function formatNumber(num: number): string {
-  return new Intl.NumberFormat("en-US").format(num);
+  return new Intl.NumberFormat("en-NP").format(num);
 }
 
 export function truncate(str: string, length: number): string {

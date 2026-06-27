@@ -14,7 +14,7 @@ export async function POST(
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const proposal = await db.proposal.findUnique({
-    where: { id, userId: (session.user as any).id },
+    where: { id },
     include: {
       services: { include: { service: true } },
       auditItems: true,
@@ -48,7 +48,7 @@ export async function POST(
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 

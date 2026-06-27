@@ -3,7 +3,7 @@ export default function BusinessSnapshot({
   monthlyTraffic,
   revenue,
   industry,
-  currency = "USD",
+  currency = "NPR",
 }: {
   leadVolume: string | null;
   monthlyTraffic: string | null;

@@ -53,7 +53,7 @@ export default async function EditProposalPage({
         googleBusinessProfile: data.googleBusinessProfile || null,
         industry: data.industry || null,
         serviceArea: data.serviceArea || null,
-        currency: data.currency || "USD",
+        currency: data.currency || "NPR",
         brandNotes: data.brandNotes || null,
         discoveryNotes: data.discoveryNotes || null,
         painPoints: data.painPoints || null,

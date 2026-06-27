@@ -1,5 +1,9 @@
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
 
+export function isGoogleApiKeyConfigured(): boolean {
+  return !!GOOGLE_API_KEY;
+}
+
 interface PlaceResult {
   placeId: string;
   name: string;
@@ -17,11 +21,12 @@ interface PlaceResult {
 }
 
 export async function searchPlaces(query: string): Promise<{ placeId: string; name: string; address: string }[]> {
-  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_PLACES_API_KEY not configured");
+  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_PLACES_API_KEY is not configured in environment variables. Please add it to Coolify env vars.");
   const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=place_id,name,formatted_address&key=${GOOGLE_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") throw new Error(`Places API error: ${data.status}`);
+  if (data.error) throw new Error(`Google API error: ${data.error.message || data.error.status}`);
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") throw new Error(`Google Places search failed: ${data.status}. Check your API key and enabled APIs.`);
   return (data.candidates || []).map((c: any) => ({
     placeId: c.place_id,
     name: c.name,
@@ -30,12 +35,13 @@ export async function searchPlaces(query: string): Promise<{ placeId: string; na
 }
 
 export async function getPlaceDetails(placeId: string): Promise<PlaceResult> {
-  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_PLACES_API_KEY not configured");
+  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_PLACES_API_KEY is not configured in environment variables.");
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,types,opening_hours,photos,reviews,geometry";
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${GOOGLE_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
-  if (data.status !== "OK") throw new Error(`Place Details error: ${data.status}`);
+  if (data.error) throw new Error(`Google API error: ${data.error.message || data.error.status}`);
+  if (data.status !== "OK") throw new Error(`Google Place Details failed: ${data.status}. Check that Places API is enabled.`);
   const p = data.result;
   return {
     placeId,
@@ -63,39 +69,4 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceResult> {
       lng: p.geometry?.location?.lng || 0,
     },
   };
-}
-
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!GOOGLE_API_KEY) return null;
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status !== "OK" || !data.results?.[0]) return null;
-  return data.results[0].geometry.location;
-}
-
-export async function generateSeoGrid(
-  lat: number,
-  lng: number,
-  gridSize: number = 7,
-  gridSpacingMeters: number = 500,
-): Promise<{ row: number; col: number; lat: number; lng: number; rank: number | null }[]> {
-  const grid: { row: number; col: number; lat: number; lng: number; rank: number | null }[] = [];
-  const meterstoDegLat = 1 / 111320;
-  const meterstoDegLng = 1 / (111320 * Math.cos((lat * Math.PI) / 180));
-
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const offsetLat = (row - Math.floor(gridSize / 2)) * gridSpacingMeters * meterstoDegLat;
-      const offsetLng = (col - Math.floor(gridSize / 2)) * gridSpacingMeters * meterstoDegLng;
-      grid.push({
-        row,
-        col,
-        lat: lat + offsetLat,
-        lng: lng + offsetLng,
-        rank: null,
-      });
-    }
-  }
-  return grid;
 }

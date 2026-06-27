@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { CURRENCIES } from "@/lib/utils";
@@ -59,7 +59,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     address: initialData?.address || "",
     serviceArea: initialData?.serviceArea || "",
     googleMapsLink: initialData?.googleMapsLink || "",
-    currency: initialData?.currency || "USD",
+    currency: initialData?.currency || "NPR",
     googleBusinessProfile: initialData?.googleBusinessProfile || "",
     currentLeadVolume: initialData?.currentLeadVolume || "",
     currentMonthlyTraffic: initialData?.currentMonthlyTraffic || "",
@@ -88,9 +88,77 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
 
   const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
+  const [assessmentFetched, setAssessmentFetched] = useState(false);
   const [placesResults, setPlacesResults] = useState<any[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
   const [localSeoGrid, setLocalSeoGrid] = useState<any[]>(initialData?.localSeoGrid || []);
+
+  // Auto-fetch assessment data when navigating to Assessment tab
+  const autoFetchAssessment = useCallback(async () => {
+    if (assessmentFetched) return;
+    setAssessmentFetched(true);
+
+    // Auto-fetch PageSpeed if website URL is set and scores are empty
+    if (form.websiteUrl && !form.lighthousePerformance) {
+      setFetchingScores(true);
+      try {
+        const res = await fetch("/api/page-speed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: form.websiteUrl }),
+        });
+        const data = await res.json();
+        if (!data.error) {
+          setForm(prev => ({
+            ...prev,
+            websiteSpeedScore: data.scores.performance,
+            lighthousePerformance: data.scores.performance,
+            lighthouseAccessibility: data.scores.accessibility,
+            lighthouseSeo: data.scores.seo,
+            lighthouseBestPractices: data.scores.bestPractices,
+          }));
+        }
+      } catch {}
+      setFetchingScores(false);
+    }
+
+    // Auto-search Google Places if business name is set and no place selected
+    if (form.businessName && !selectedPlace) {
+      setFetchingPlaces(true);
+      try {
+        const res = await fetch("/api/google-places", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: `${form.businessName} ${form.address}` }),
+        });
+        const data = await res.json();
+        if (!data.error && data.results?.length > 0) {
+          setPlacesResults(data.results);
+          // Auto-select first result
+          const detailRes = await fetch("/api/google-places", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ placeId: data.results[0].placeId }),
+          });
+          const detail = await detailRes.json();
+          if (!detail.error) {
+            setSelectedPlace(detail);
+            setForm(prev => ({ ...prev, googleProfileScore: detail.totalScore || "" }));
+          }
+        }
+      } catch {}
+      setFetchingPlaces(false);
+    }
+
+    // Auto-init empty grid if none exists
+    if (localSeoGrid.length === 0) {
+      initEmptyGrid();
+    }
+  }, [form.websiteUrl, form.businessName, form.address, form.lighthousePerformance, selectedPlace, localSeoGrid.length, assessmentFetched]);
+
+  useEffect(() => {
+    if (activeTab === 2) autoFetchAssessment();
+  }, [activeTab, autoFetchAssessment]);
 
   function updateField(key: string, value: any) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -304,7 +372,19 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <span className="material-symbols-outlined text-[18px] text-[#004527]">speed</span>
                 <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Website Speed & Lighthouse Scores</h3>
               </div>
-              <Button type="button" variant="outline" size="sm" loading={fetchingScores} onClick={fetchPageSpeed}>Auto-fetch from PageSpeed</Button>
+              {fetchingScores ? (
+                <span className="text-[12px] text-[#004527] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                  Fetching...
+                </span>
+              ) : form.lighthousePerformance ? (
+                <span className="text-[12px] text-[#15803d] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                  Auto-fetched
+                </span>
+              ) : (
+                <Button type="button" variant="outline" size="sm" onClick={fetchPageSpeed}>Fetch Now</Button>
+              )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
@@ -353,7 +433,15 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <span className="material-symbols-outlined text-[18px] text-[#004527]">grid_view</span>
                 <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Local SEO Grid</h3>
               </div>
-              {localSeoGrid.length === 0 && <Button type="button" variant="outline" size="sm" onClick={initEmptyGrid}>Initialize 7x7 Grid</Button>}
+              {localSeoGrid.length === 0 && !fetchingPlaces && (
+                <Button type="button" variant="outline" size="sm" onClick={initEmptyGrid}>Initialize 7x7 Grid</Button>
+              )}
+              {fetchingPlaces && (
+                <span className="text-[12px] text-[#004527] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                  Fetching Google data...
+                </span>
+              )}
             </div>
             {localSeoGrid.length > 0 ? (
               <div className="overflow-x-auto">
@@ -434,7 +522,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <span className="material-symbols-outlined text-[18px] text-[#004527]">view_list</span>
             <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Proposal Sections</h3>
           </div>
-          <p className="text-[12px] text-on-surface-variant mb-4">Choose which reusable sections to include</p>
+          <p className="text-[12px] text-on-surface-variant mb-4">Choose which sections to include in this proposal</p>
           <div className="space-y-2">
             {sections.map((section) => (
               <label key={section.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#c3cdd8]/50 hover:bg-surface cursor-pointer transition-colors">
