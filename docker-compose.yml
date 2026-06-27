@@ -1,8 +1,8 @@
 services:
   app:
     build: .
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-brandid}:${POSTGRES_PASSWORD:-brandid_secret}@db:5432/${POSTGRES_DB:-brandid_proposals}
       - AUTH_SECRET=${AUTH_SECRET}
