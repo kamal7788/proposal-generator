@@ -9,7 +9,7 @@ export function proxy(request: NextRequest) {
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
   if (isProtected) {
-    const token = request.cookies.get("next-auth.session-token");
+    const token = request.cookies.get("__Secure-authjs.session-token") || request.cookies.get("authjs.session-token");
     if (!token) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
