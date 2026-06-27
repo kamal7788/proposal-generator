@@ -24,7 +24,7 @@ services:
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-brandid}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-brandid_secret}
-      - POSTGRES_DB=${POSTGRES_DB:-brandid_proposals}
+      - POSTGRES_DB=${POSTGRES_DB:-brandid}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

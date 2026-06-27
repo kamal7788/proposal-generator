@@ -12,8 +12,14 @@ echo "==> PostgreSQL is ready."
 
 # ─── Ensure database exists ───────────────────────────────────────────
 export PGPASSWORD="${POSTGRES_PASSWORD:-brandid_secret}"
-DB_NAME="${POSTGRES_DB:-brandid_proposals}"
 DB_USER="${POSTGRES_USER:-brandid}"
+
+# Extract DB name from DATABASE_URL (handles any naming)
+if [ -n "$DATABASE_URL" ]; then
+  DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
+else
+  DB_NAME="${POSTGRES_DB:-brandid_proposals}"
+fi
 echo "==> Checking if database '$DB_NAME' exists..."
 if psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
   echo "    Database '$DB_NAME' already exists."
