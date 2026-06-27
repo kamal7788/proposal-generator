@@ -64,7 +64,11 @@ for MIGRATION in \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='packageName') THEN ALTER TABLE proposal_services ADD COLUMN \"packageName\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='packagePrice') THEN ALTER TABLE proposal_services ADD COLUMN \"packagePrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='customPrice') THEN ALTER TABLE proposal_services ADD COLUMN \"customPrice\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='notes') THEN ALTER TABLE proposal_services ADD COLUMN notes TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$"
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposal_services' AND column_name='notes') THEN ALTER TABLE proposal_services ADD COLUMN notes TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposals' AND column_name='localSeoGrid') THEN ALTER TABLE proposals ADD COLUMN \"localSeoGrid\" JSONB; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='proposals' AND column_name='googleBusinessData') THEN ALTER TABLE proposals ADD COLUMN \"googleBusinessData\" JSONB; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='services' AND column_name='imageUrl') THEN ALTER TABLE services ADD COLUMN \"imageUrl\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$" \
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='testimonials' AND column_name='imageUrl') THEN ALTER TABLE testimonials ADD COLUMN \"imageUrl\" TEXT; END IF; EXCEPTION WHEN OTHERS THEN NULL; END \$\$"
 do
   psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "$MIGRATION" 2>&1 || true
 done

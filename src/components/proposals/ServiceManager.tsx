@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -17,6 +17,7 @@ interface Service {
   deliverables: string | null;
   pricingNotes: string | null;
   pricingPackages: any;
+  imageUrl: string | null;
   proofPoints: string | null;
   timeline: string | null;
   isActive: boolean;
@@ -29,6 +30,18 @@ export default function ServiceManager({ services: initialServices }: { services
   const [editing, setEditing] = useState<Service | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function uploadImage(file: File): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      return data.url || null;
+    } catch { return null; }
+  }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,6 +54,7 @@ export default function ServiceManager({ services: initialServices }: { services
     if (data.pricingPackages) {
       try { data.pricingPackages = JSON.parse(data.pricingPackages); } catch { data.pricingPackages = null; }
     }
+    data.imageUrl = imageUrl || null;
 
     try {
       if (editing) {
@@ -77,7 +91,7 @@ export default function ServiceManager({ services: initialServices }: { services
   return (
     <div>
       <div className="flex justify-end mb-6">
-        <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+        <Button onClick={() => { setEditing(null); setImageUrl(""); setShowForm(true); }}>
           + Add Service
         </Button>
       </div>
@@ -85,7 +99,8 @@ export default function ServiceManager({ services: initialServices }: { services
       <div className="space-y-4">
         {services.map((service) => (
           <Card key={service.id}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              {service.imageUrl && <img src={service.imageUrl} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-brand-black">{service.name}</h3>
@@ -104,13 +119,7 @@ export default function ServiceManager({ services: initialServices }: { services
                 )}
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setEditing(service); setShowForm(true); }}
-                >
-                  Edit
-                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(service); setImageUrl(service.imageUrl || ""); setShowForm(true); }}>Edit</Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -147,6 +156,18 @@ export default function ServiceManager({ services: initialServices }: { services
             rows={4}
             placeholder='[{"name": "Starter", "price": "$2,500", "features": ["Feature 1"]}, {"name": "Premium", "price": "$5,000", "features": ["Feature 1", "Feature 2"]}]'
           />
+          <div>
+            <label className="block text-[13px] font-medium text-on-surface mb-1.5">Service Image</label>
+            <div className="flex items-center gap-3">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const url = await uploadImage(file); if (url) setImageUrl(url);
+              }} />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>Upload Image</Button>
+              <Input name="imageUrl" label="" placeholder="Or paste image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="flex-1" />
+            </div>
+            {imageUrl && <img src={imageUrl} alt="" className="mt-2 h-16 rounded-lg object-cover" />}
+          </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }}>
               Cancel

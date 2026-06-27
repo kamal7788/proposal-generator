@@ -136,7 +136,7 @@ export default function UserManager({ users: initial }: { users: User[] }) {
               className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] bg-white text-on-surface focus:outline-none focus:ring-2 focus:ring-[#004527]/15 focus:border-[#004527]"
             >
               <option value="admin">Admin</option>
-              <option value="viewer">Viewer</option>
+              <option value="user">User</option>
             </select>
           </div>
           <div className="flex justify-end gap-3 pt-4">

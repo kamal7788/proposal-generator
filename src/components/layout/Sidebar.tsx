@@ -20,9 +20,7 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-[220px] bg-[#004527] text-white flex flex-col z-40">
       <div className="px-5 py-5">
         <Link href="/proposals" className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#efe8db] rounded-full flex items-center justify-center">
-            <span className="text-[#004527] font-bold text-sm font-[family-name:var(--font-display)]">BA</span>
-          </div>
+          <img src="/uploads/Main Icon.png" alt="BrandAid" className="w-9 h-9 rounded-full" />
           <div>
             <h1 className="text-[15px] font-bold tracking-tight font-[family-name:var(--font-display)]">BrandAid</h1>
             <p className="text-[11px] text-white/50">Proposal Generator</p>

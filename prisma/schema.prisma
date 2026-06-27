@@ -99,6 +99,8 @@ model Proposal {
   passwordHash          String?
   generatedContent      Json?
   sectionsOrder         Json?
+  localSeoGrid          Json?
+  googleBusinessData    Json?
   deletionRequested     Boolean   @default(false)
   deletionReason        String?   @db.Text
   createdAt             DateTime  @default(now())
@@ -125,6 +127,7 @@ model Service {
   timeline         String?
   addOns           String?           @db.Text
   pricingPackages  Json?
+  imageUrl         String?
   isActive         Boolean           @default(true)
   sortOrder        Int               @default(0)
   createdAt        DateTime          @default(now())
@@ -201,6 +204,7 @@ model Testimonial {
   authorName String
   authorRole String?
   company    String?
+  imageUrl   String?
   createdAt  DateTime @default(now())
 
   @@map("testimonials")

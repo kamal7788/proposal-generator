@@ -85,6 +85,8 @@ CREATE TABLE "proposals" (
     "passwordHash" TEXT,
     "generatedContent" JSONB,
     "sectionsOrder" JSONB,
+    "localSeoGrid" JSONB,
+    "googleBusinessData" JSONB,
     "deletionRequested" BOOLEAN NOT NULL DEFAULT false,
     "deletionReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -107,6 +109,7 @@ CREATE TABLE "services" (
     "timeline" TEXT,
     "addOns" TEXT,
     "pricingPackages" JSONB,
+    "imageUrl" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -179,6 +182,7 @@ CREATE TABLE "testimonials" (
     "authorName" TEXT NOT NULL,
     "authorRole" TEXT,
     "company" TEXT,
+    "imageUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "testimonials_pkey" PRIMARY KEY ("id")

@@ -38,9 +38,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-[#004527] rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-xl font-[family-name:var(--font-display)]">BA</span>
-            </div>
+            <img src="/uploads/Main Logo black.png" alt="BrandAid" className="h-10 mx-auto mb-3" />
             <h1 className="text-xl font-bold text-on-surface font-[family-name:var(--font-display)]">BrandAid</h1>
             <p className="text-[13px] text-on-surface-variant mt-1">Proposal Generator</p>
           </div>

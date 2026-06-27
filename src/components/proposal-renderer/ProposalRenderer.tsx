@@ -4,6 +4,8 @@ import CoverHero from "./CoverHero";
 import ExecutiveSummary from "./ExecutiveSummary";
 import BusinessSnapshot from "./BusinessSnapshot";
 import AssessmentScores from "./AssessmentScores";
+import LocalSeoGrid from "./LocalSeoGrid";
+import GoogleInsightsPanel from "./GoogleInsightsPanel";
 import AuditFindings from "./AuditFindings";
 import RevenueOpportunity from "./RevenueOpportunity";
 import RecommendedServices from "./RecommendedServices";
@@ -32,8 +34,10 @@ interface ProposalData {
   lighthouseBestPractices: number | null;
   googleProfileScore: number | null;
   localSeoScore: number | null;
+  localSeoGrid: any;
+  googleBusinessData: any;
   generatedContent: any;
-  services: { service: { name: string; description: string | null; shortDescription: string | null; pricingNotes: string | null; outcomes: string | null; deliverables: string | null; proofPoints: string | null; timeline: string | null } }[];
+  services: { service: { name: string; description: string | null; shortDescription: string | null; pricingNotes: string | null; outcomes: string | null; deliverables: string | null; proofPoints: string | null; timeline: string | null; imageUrl: string | null } }[];
   sections: { title: string; content: string; isVisible: boolean }[];
   auditItems: { title: string; category: string; currentIssue: string | null; whyItMatters: string | null; recommendations: string | null; revenueImpact: string | null; priority: string }[];
   assumptions: { type: string; label: string; lowValue: number; expectedValue: number; highValue: number; unit: string }[];
@@ -44,6 +48,8 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
   const services = proposal.services.map((ps) => ps.service);
   const visibleSections = proposal.sections.filter((s) => s.isVisible);
   const currency = proposal.currency || "USD";
+  const googleData = proposal.googleBusinessData as any;
+  const seoGrid = proposal.localSeoGrid as any[] || [];
 
   const hasAssessmentScores = proposal.websiteSpeedScore || proposal.lighthousePerformance ||
     proposal.lighthouseAccessibility || proposal.lighthouseSeo || proposal.lighthouseBestPractices ||
@@ -55,14 +61,13 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
       <nav className="glass-header sticky top-0 z-50 border-b border-[#c3cdd8]/30">
         <div className="max-w-4xl mx-auto px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#004527] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-xs font-[family-name:var(--font-display)]">BA</span>
-            </div>
-            <span className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">BrandAid</span>
+            <img src="/uploads/Main Logo White.png" alt="BrandAid" className="h-7" />
           </div>
           <div className="flex items-center gap-4 text-[13px] text-on-surface-variant">
             <a href="#executive-summary" className="hover:text-on-surface transition-colors">Summary</a>
             {hasAssessmentScores && <a href="#assessment" className="hover:text-on-surface transition-colors">Assessment</a>}
+            {googleData && <a href="#google-profile" className="hover:text-on-surface transition-colors">Google Profile</a>}
+            {seoGrid.length > 0 && <a href="#local-seo-grid" className="hover:text-on-surface transition-colors">SEO Grid</a>}
             <a href="#audit" className="hover:text-on-surface transition-colors">Audit</a>
             <a href="#services" className="hover:text-on-surface transition-colors">Services</a>
             <a href="#roi" className="hover:text-on-surface transition-colors">ROI</a>
@@ -106,6 +111,18 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
         </div>
       )}
 
+      {googleData && (
+        <div id="google-profile">
+          <GoogleInsightsPanel data={googleData} />
+        </div>
+      )}
+
+      {seoGrid.length > 0 && (
+        <div id="local-seo-grid">
+          <LocalSeoGrid grid={seoGrid} businessName={proposal.businessName} />
+        </div>
+      )}
+
       {generated.keyFindings && (
         <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
           <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Key Findings</h2>
@@ -145,9 +162,7 @@ export default function ProposalRenderer({ proposal }: { proposal: ProposalData 
 
       {/* Footer */}
       <div className="bg-[#004527] text-white py-12 px-8 text-center">
-        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-white font-bold text-lg font-[family-name:var(--font-display)]">BA</span>
-        </div>
+        <img src="/uploads/Main Logo White.png" alt="BrandAid" className="h-8 mx-auto mb-4" />
         <h3 className="text-lg font-semibold font-[family-name:var(--font-display)]">BrandAid</h3>
         <p className="text-sm text-white/70 mt-1">Strategic Growth Consultancy</p>
         <p className="text-xs text-white/50 mt-4">
