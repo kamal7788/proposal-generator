@@ -5,7 +5,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Protect dashboard routes
-  const protectedPaths = ["/proposals", "/services", "/sections", "/case-studies", "/testimonials"];
+  const protectedPaths = ["/proposals", "/services", "/sections", "/case-studies", "/testimonials", "/dashboard", "/users"];
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
   if (isProtected) {
@@ -21,5 +21,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/proposals/:path*", "/services/:path*", "/sections/:path*", "/case-studies/:path*", "/testimonials/:path*"],
+  matcher: ["/proposals/:path*", "/services/:path*", "/sections/:path*", "/case-studies/:path*", "/testimonials/:path*", "/dashboard/:path*", "/users/:path*"],
 };

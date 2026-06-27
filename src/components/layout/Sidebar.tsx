@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 const navigation = [
+  { name: "Dashboard", href: "/dashboard", icon: "dashboard" },
   { name: "Proposals", href: "/proposals", icon: "description" },
   { name: "Modules", href: "/services", icon: "widgets" },
   { name: "Case Studies", href: "/case-studies", icon: "work_history" },
   { name: "Testimonials", href: "/testimonials", icon: "chat" },
+  { name: "Users", href: "/users", icon: "group" },
 ];
 
 export function Sidebar() {
