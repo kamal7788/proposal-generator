@@ -1,7 +1,5 @@
 import { db } from "@/lib/db";
 import { Header } from "@/components/layout/Header";
-import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import ServiceManager from "@/components/proposals/ServiceManager";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +12,7 @@ export default async function ServicesPage() {
 
   return (
     <div>
-      <Header title="Service Library" subtitle="Manage your service offerings" />
+      <Header title="Modules" subtitle="Manage your service offerings and bundles" />
       <ServiceManager services={services} />
     </div>
   );

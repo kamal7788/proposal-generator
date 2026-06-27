@@ -10,8 +10,8 @@ export function Card({ children, className, padding = true }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-xl border border-brand-border shadow-sm",
-        padding && "p-6",
+        "bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm",
+        padding && "p-5",
         className
       )}
     >
@@ -40,7 +40,7 @@ interface CardTitleProps {
 
 export function CardTitle({ children, className }: CardTitleProps) {
   return (
-    <h3 className={cn("text-lg font-semibold text-brand-black", className)}>
+    <h3 className={cn("text-[15px] font-semibold text-on-surface font-[family-name:var(--font-display)]", className)}>
       {children}
     </h3>
   );

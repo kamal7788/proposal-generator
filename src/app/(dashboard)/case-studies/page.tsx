@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { Header } from "@/components/layout/Header";
-import { Card, CardTitle } from "@/components/ui/Card";
 import CaseStudyManager from "@/components/proposals/CaseStudyManager";
 
 export const dynamic = "force-dynamic";

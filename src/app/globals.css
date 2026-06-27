@@ -1,32 +1,45 @@
 @import "tailwindcss";
+@import "material-symbols/outlined.css";
 
 @theme {
-  --color-brand-green: #1B4332;
-  --color-brand-green-light: #2D6A4F;
-  --color-brand-green-dark: #0F2B1F;
-  --color-brand-cream: #FDF6EC;
-  --color-brand-cream-dark: #F5E6D0;
-  --color-brand-white: #FFFFFF;
-  --color-brand-black: #0A0A0A;
-  --color-brand-neutral: #6B7280;
-  --color-brand-neutral-light: #9CA3AF;
-  --color-brand-surface: #F8F5F0;
-  --color-brand-border: #E5E0D8;
-  --color-brand-success: #16A34A;
-  --color-brand-warning: #D97706;
-  --color-brand-danger: #DC2626;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Inter", system-ui, -apple-system, sans-serif;
+  --color-primary: #004527;
+  --color-primary-light: #006B3F;
+  --color-primary-dark: #003019;
+  --color-primary-container: #1B5E3B;
+  --color-surface: #f7f9ff;
+  --color-surface-dim: #eef2f9;
+  --color-surface-container: #ffffff;
+  --color-on-surface: #121d26;
+  --color-on-surface-variant: #40505d;
+  --color-outline: #738391;
+  --color-outline-variant: #c3cdd8;
+  --color-brand-cream: #efe8db;
+  --color-brand-cream-dark: #e2d5c0;
+
+  --color-status-terrible: #dc2626;
+  --color-status-bad: #f97316;
+  --color-status-okay: #2563eb;
+  --color-status-good: #15803d;
+
+  --color-accent-1: #8b5cf6;
+  --color-accent-2: #ec4899;
+
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Hanken Grotesk", "DM Sans", system-ui, -apple-system, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-brand-surface);
-  color: var(--color-brand-black);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -34,13 +47,17 @@ body {
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-brand-neutral-light);
+  background: var(--color-outline-variant);
   border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
 }
 
 /* Print styles for PDF */
@@ -55,13 +72,13 @@ body {
 
 /* Inline editable styles */
 [contenteditable="true"]:focus {
-  outline: 2px solid var(--color-brand-green-light);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 [contenteditable="true"]:hover {
-  outline: 1px dashed var(--color-brand-neutral-light);
+  outline: 1px dashed var(--color-outline-variant);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -74,3 +91,102 @@ body {
 .proposal-print:last-child {
   page-break-after: avoid;
 }
+
+/* Card hover micro-interaction */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Fade up entrance animation */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-fade-up-delay-1 { animation-delay: 0.05s; }
+.animate-fade-up-delay-2 { animation-delay: 0.1s; }
+.animate-fade-up-delay-3 { animation-delay: 0.15s; }
+.animate-fade-up-delay-4 { animation-delay: 0.2s; }
+.animate-fade-up-delay-5 { animation-delay: 0.25s; }
+.animate-fade-up-delay-6 { animation-delay: 0.3s; }
+
+/* Glass morphism header */
+.glass-header {
+  background: rgba(247, 249, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Donut chart animation */
+@keyframes donut-fill {
+  from {
+    stroke-dashoffset: 283;
+  }
+}
+
+.animate-donut {
+  animation: donut-fill 1s ease-out forwards;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #c3cdd8;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch.active {
+  background: var(--color-primary);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch.active::after {
+  transform: translateX(20px);
+}
+
+/* Staggered card entrance */
+.stagger-card {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fadeUp 0.4s ease-out forwards;
+}
+
+.stagger-card:nth-child(1) { animation-delay: 0.05s; }
+.stagger-card:nth-child(2) { animation-delay: 0.1s; }
+.stagger-card:nth-child(3) { animation-delay: 0.15s; }
+.stagger-card:nth-child(4) { animation-delay: 0.2s; }
+.stagger-card:nth-child(5) { animation-delay: 0.25s; }
+.stagger-card:nth-child(6) { animation-delay: 0.3s; }
+.stagger-card:nth-child(7) { animation-delay: 0.35s; }
+.stagger-card:nth-child(8) { animation-delay: 0.4s; }

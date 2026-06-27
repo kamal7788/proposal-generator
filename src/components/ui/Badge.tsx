@@ -2,23 +2,27 @@ import { cn } from "@/lib/cn";
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: "default" | "success" | "warning" | "danger" | "info";
+  variant?: "default" | "success" | "warning" | "danger" | "info" | "terrible" | "bad" | "okay" | "good";
   className?: string;
 }
 
 export function Badge({ children, variant = "default", className }: BadgeProps) {
   const variants = {
-    default: "bg-brand-surface text-brand-neutral border-brand-border",
-    success: "bg-green-50 text-green-700 border-green-200",
-    warning: "bg-amber-50 text-amber-700 border-amber-200",
-    danger: "bg-red-50 text-red-700 border-red-200",
-    info: "bg-blue-50 text-blue-700 border-blue-200",
+    default: "bg-surface text-on-surface-variant border-[#c3cdd8]/50",
+    success: "bg-[#15803d]/10 text-[#15803d] border-[#15803d]/20",
+    warning: "bg-[#f97316]/10 text-[#f97316] border-[#f97316]/20",
+    danger: "bg-[#dc2626]/10 text-[#dc2626] border-[#dc2626]/20",
+    info: "bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/20",
+    terrible: "bg-[#dc2626]/10 text-[#dc2626] border-[#dc2626]/20",
+    bad: "bg-[#f97316]/10 text-[#f97316] border-[#f97316]/20",
+    okay: "bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/20",
+    good: "bg-[#15803d]/10 text-[#15803d] border-[#15803d]/20",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+        "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border",
         variants[variant],
         className
       )}

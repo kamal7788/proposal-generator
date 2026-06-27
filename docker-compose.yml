@@ -4,12 +4,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://brandid:brandid_password@db:5432/brandid_proposals
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-brandid}:${POSTGRES_PASSWORD:-brandid_secret}@db:5432/${POSTGRES_DB:-brandid_proposals}
       - AUTH_SECRET=${AUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@brandid.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    env_file:
+      - .env
     volumes:
       - uploads:/app/public/uploads
     depends_on:
@@ -20,18 +22,18 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=brandid
-      - POSTGRES_PASSWORD=brandid_password
-      - POSTGRES_DB=brandid_proposals
+      - POSTGRES_USER=${POSTGRES_USER:-brandid}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-brandid_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-brandid_proposals}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U brandid"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brandid}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
 
 volumes:

@@ -1,8 +1,6 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import { Header } from "@/components/layout/Header";
-import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ProposalActions from "@/components/proposals/ProposalActions";
@@ -32,131 +30,163 @@ export default async function ProposalDetailPage({
   if (!proposal) notFound();
 
   return (
-    <div>
-      <Header
-        title={proposal.businessName}
-        subtitle={`Proposal · ${proposal.contactName || "No contact"}`}
-        actions={
-          <ProposalActions
-            proposalId={proposal.id}
-            status={proposal.status}
-            shareSlug={proposal.shareSlug}
-          />
-        }
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardTitle>Business Information</CardTitle>
-            <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-              <div>
-                <p className="text-brand-neutral">Contact</p>
-                <p className="font-medium">{proposal.contactName || "—"}</p>
-              </div>
-              <div>
-                <p className="text-brand-neutral">Email</p>
-                <p className="font-medium">{proposal.contactEmail || "—"}</p>
-              </div>
-              <div>
-                <p className="text-brand-neutral">Phone</p>
-                <p className="font-medium">{proposal.contactPhone || "—"}</p>
-              </div>
-              <div>
-                <p className="text-brand-neutral">Industry</p>
-                <p className="font-medium">{proposal.industry || "—"}</p>
-              </div>
-              <div>
-                <p className="text-brand-neutral">Website</p>
-                <p className="font-medium">{proposal.websiteUrl || "—"}</p>
-              </div>
-              <div>
-                <p className="text-brand-neutral">Revenue</p>
-                <p className="font-medium">{proposal.approximateRevenue || "—"}</p>
-              </div>
-            </div>
-          </Card>
-
-          {proposal.discoveryNotes && (
-            <Card>
-              <CardTitle>Discovery Notes</CardTitle>
-              <p className="text-sm text-brand-neutral mt-2 whitespace-pre-wrap">
-                {proposal.discoveryNotes}
-              </p>
-            </Card>
-          )}
-
-          {proposal.painPoints && (
-            <Card>
-              <CardTitle>Pain Points</CardTitle>
-              <p className="text-sm text-brand-neutral mt-2 whitespace-pre-wrap">
-                {proposal.painPoints}
-              </p>
-            </Card>
-          )}
-
-          {proposal.goals && (
-            <Card>
-              <CardTitle>Goals</CardTitle>
-              <p className="text-sm text-brand-neutral mt-2 whitespace-pre-wrap">
-                {proposal.goals}
-              </p>
-            </Card>
-          )}
+    <div className="flex gap-6 h-[calc(100vh-48px)]">
+      {/* Left: Main content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-xl font-bold text-on-surface font-[family-name:var(--font-display)]">
+              {proposal.businessName}
+            </h1>
+            <Badge
+              variant={
+                proposal.status === "published"
+                  ? "good"
+                  : proposal.status === "archived"
+                  ? "default"
+                  : "warning"
+              }
+            >
+              {proposal.status}
+            </Badge>
+          </div>
+          <p className="text-[13px] text-on-surface-variant">
+            Proposal · {proposal.contactName || "No contact"}
+          </p>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardTitle>Services ({proposal.services.length})</CardTitle>
-            <div className="space-y-2 mt-3">
+        <ProposalActions
+          proposalId={proposal.id}
+          status={proposal.status}
+          shareSlug={proposal.shareSlug}
+        />
+
+        <div className="mt-6 space-y-4">
+          {/* Business Info Card */}
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">Business Information</h3>
+            <div className="grid grid-cols-2 gap-3 text-[12px]">
+              <div>
+                <p className="text-on-surface-variant">Contact</p>
+                <p className="font-medium text-on-surface">{proposal.contactName || "—"}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant">Email</p>
+                <p className="font-medium text-on-surface">{proposal.contactEmail || "—"}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant">Phone</p>
+                <p className="font-medium text-on-surface">{proposal.contactPhone || "—"}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant">Industry</p>
+                <p className="font-medium text-on-surface">{proposal.industry || "—"}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant">Website</p>
+                <p className="font-medium text-on-surface">{proposal.websiteUrl || "—"}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant">Revenue</p>
+                <p className="font-medium text-on-surface">{proposal.approximateRevenue || "—"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Services */}
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">
+              Services ({proposal.services.length})
+            </h3>
+            <div className="space-y-1.5">
               {proposal.services.map((ps) => (
-                <div
-                  key={ps.id}
-                  className="p-2 rounded-lg bg-brand-surface text-sm"
-                >
+                <div key={ps.id} className="flex items-center gap-2 p-2 rounded-lg bg-surface text-[12px]">
+                  <span className="material-symbols-outlined text-[16px] text-[#004527]">check_circle</span>
                   {ps.service.name}
                 </div>
               ))}
               {proposal.services.length === 0 && (
-                <p className="text-sm text-brand-neutral">No services selected</p>
+                <p className="text-[12px] text-on-surface-variant">No services selected</p>
               )}
             </div>
-          </Card>
+          </div>
 
-          <Card>
-            <CardTitle>Sections ({proposal.sections.length})</CardTitle>
-            <div className="space-y-1 mt-3">
-              {proposal.sections.map((section) => (
-                <div
-                  key={section.id}
-                  className="flex items-center justify-between text-sm py-1"
-                >
-                  <span>{section.title}</span>
-                  <Badge variant={section.isVisible ? "success" : "default"}>
-                    {section.isVisible ? "Visible" : "Hidden"}
-                  </Badge>
-                </div>
-              ))}
+          {/* Audit Items */}
+          {proposal.auditItems.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+              <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">
+                Audit Items ({proposal.auditItems.length})
+              </h3>
+              <div className="space-y-1.5">
+                {proposal.auditItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-surface text-[12px]">
+                    <span className="font-medium text-on-surface">{item.title}</span>
+                    <Badge variant={item.priority === "high" ? "danger" : item.priority === "medium" ? "warning" : "default"}>
+                      {item.priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </div>
-          </Card>
+          )}
 
-          <Card>
-            <CardTitle>Audit Items ({proposal.auditItems.length})</CardTitle>
-            <div className="space-y-1 mt-3">
-              {proposal.auditItems.map((item) => (
-                <div key={item.id} className="text-sm py-1">
-                  <span className="font-medium">{item.title}</span>
-                  <span className="text-brand-neutral ml-2">({item.category})</span>
-                </div>
-              ))}
+          {/* Discovery Notes */}
+          {proposal.discoveryNotes && (
+            <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+              <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">Discovery Notes</h3>
+              <p className="text-[12px] text-on-surface-variant whitespace-pre-wrap">{proposal.discoveryNotes}</p>
             </div>
-          </Card>
+          )}
+        </div>
+      </div>
 
-          <Link href={`/proposals/${proposal.id}/preview`}>
-            <button className="w-full bg-brand-green text-white py-2.5 rounded-lg text-sm font-medium hover:bg-brand-green-light transition-colors">
-              Preview Proposal
+      {/* Right: Preview panel */}
+      <div className="w-[340px] flex-shrink-0 overflow-y-auto">
+        <div className="sticky top-0">
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">Client Snapshot</h3>
+            <div className="space-y-2.5 text-[12px]">
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Business</span>
+                <span className="text-on-surface font-medium">{proposal.businessName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Contact</span>
+                <span className="text-on-surface font-medium">{proposal.contactName || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Industry</span>
+                <span className="text-on-surface font-medium">{proposal.industry || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Services</span>
+                <span className="text-on-surface font-medium">{proposal.services.length} selected</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <h3 className="text-[13px] font-semibold text-on-surface mb-3 font-[family-name:var(--font-display)]">Microsite Preview</h3>
+            <div className="bg-surface rounded-lg p-4 text-center">
+              <div className="w-10 h-10 bg-[#004527] rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-white font-bold text-xs font-[family-name:var(--font-display)]">BA</span>
+              </div>
+              <p className="text-[12px] font-semibold text-on-surface">{proposal.businessName}</p>
+              <p className="text-[11px] text-on-surface-variant">Growth Strategy Proposal</p>
+            </div>
+          </div>
+
+          <Link href={`/proposals/${proposal.id}/preview`} className="mt-4 block">
+            <button className="w-full py-2.5 rounded-lg bg-[#004527] text-white text-[13px] font-medium hover:bg-[#006B3F] transition-colors flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              View Microsite
+            </button>
+          </Link>
+
+          <Link href={`/p/${proposal.shareSlug}`} className="mt-2 block" target="_blank">
+            <button className="w-full py-2.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">share</span>
+              Share Public Link
             </button>
           </Link>
         </div>
