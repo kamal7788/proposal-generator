@@ -5,11 +5,19 @@ echo "==> BrandAid Proposal Generator — Starting up..."
 
 # ─── Wait for PostgreSQL ──────────────────────────────────────────────
 echo "==> Waiting for PostgreSQL to be ready..."
-until npx prisma db push --accept-data-loss 2>/dev/null; do
+until pg_isready -h db -p 5432 2>/dev/null; do
   echo "    PostgreSQL not ready yet, retrying in 3s..."
   sleep 3
 done
 echo "==> PostgreSQL is ready."
+
+# ─── Ensure database exists ───────────────────────────────────────────
+DB_NAME="${POSTGRES_DB:-brandid_proposals}"
+DB_USER="${POSTGRES_USER:-brandid}"
+echo "==> Checking if database '$DB_NAME' exists..."
+psql -h db -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || \
+  psql -h db -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME"
+echo "==> Database '$DB_NAME' is ready."
 
 # ─── Run database migrations ──────────────────────────────────────────
 echo "==> Applying database schema..."
