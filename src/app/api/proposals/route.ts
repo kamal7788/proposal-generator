@@ -44,9 +44,51 @@ export async function POST(request: NextRequest) {
       approximateRevenue: body.approximateRevenue,
       existingCrm: body.existingCrm,
       competitors: body.competitors,
+      currency: body.currency || "USD",
+      websiteSpeedScore: body.websiteSpeedScore ? Number(body.websiteSpeedScore) : null,
+      lighthousePerformance: body.lighthousePerformance ? Number(body.lighthousePerformance) : null,
+      lighthouseAccessibility: body.lighthouseAccessibility ? Number(body.lighthouseAccessibility) : null,
+      lighthouseSeo: body.lighthouseSeo ? Number(body.lighthouseSeo) : null,
+      lighthouseBestPractices: body.lighthouseBestPractices ? Number(body.lighthouseBestPractices) : null,
+      googleProfileScore: body.googleProfileScore ? Number(body.googleProfileScore) : null,
+      localSeoScore: body.localSeoScore ? Number(body.localSeoScore) : null,
+      localSeoGrid: body.localSeoGrid || undefined,
+      googleBusinessData: body.googleBusinessData || undefined,
       shareSlug: generateSlug(),
     },
   });
+
+  // Create proposal-service links
+  if (body.serviceIds && body.serviceIds.length > 0) {
+    for (const serviceId of body.serviceIds) {
+      const pricingData = body[`pricing_${serviceId}`];
+      let packageData = {};
+      if (pricingData) {
+        try { packageData = JSON.parse(pricingData); } catch {}
+      }
+      await db.proposalService.create({
+        data: { proposalId: proposal.id, serviceId, ...packageData },
+      });
+    }
+  }
+
+  // Create proposal sections
+  if (body.sectionIds && body.sectionIds.length > 0) {
+    for (let i = 0; i < body.sectionIds.length; i++) {
+      const section = await db.reusableSection.findUnique({ where: { id: body.sectionIds[i] } });
+      if (section) {
+        await db.proposalSection.create({
+          data: {
+            proposalId: proposal.id,
+            reusableSectionId: section.id,
+            title: section.title,
+            content: section.content,
+            sortOrder: i,
+          },
+        });
+      }
+    }
+  }
 
   return Response.json(proposal);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { CURRENCIES } from "@/lib/utils";
@@ -47,15 +47,29 @@ const TABS = ["Business Info", "Online Presence", "Assessment", "Services", "Sec
 export default function ProposalForm({ services, sections, onSubmit, initialData, isEdit }: ProposalFormProps) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedServices, setSelectedServices] = useState<string[]>(
-    initialData?.serviceIds || initialData?.services?.map((s: any) => s.serviceId || s.id) || []
-  );
-  const [selectedSections, setSelectedSections] = useState<string[]>(
-    initialData?.sectionIds || initialData?.sections?.map((s: any) => s.reusableSectionId || s.id) || sections.map((s) => s.id)
-  );
 
-  const [fetchingScores, setFetchingScores] = useState(false);
-  const [scores, setScores] = useState({
+  // All form state lifted up here so it persists across tab switches
+  const [form, setForm] = useState({
+    businessName: initialData?.businessName || "",
+    contactName: initialData?.contactName || "",
+    contactEmail: initialData?.contactEmail || "",
+    contactPhone: initialData?.contactPhone || "",
+    websiteUrl: initialData?.websiteUrl || "",
+    industry: initialData?.industry || "",
+    address: initialData?.address || "",
+    serviceArea: initialData?.serviceArea || "",
+    googleMapsLink: initialData?.googleMapsLink || "",
+    currency: initialData?.currency || "USD",
+    googleBusinessProfile: initialData?.googleBusinessProfile || "",
+    currentLeadVolume: initialData?.currentLeadVolume || "",
+    currentMonthlyTraffic: initialData?.currentMonthlyTraffic || "",
+    approximateRevenue: initialData?.approximateRevenue || "",
+    existingCrm: initialData?.existingCrm || "",
+    discoveryNotes: initialData?.discoveryNotes || "",
+    painPoints: initialData?.painPoints || "",
+    goals: initialData?.goals || "",
+    brandNotes: initialData?.brandNotes || "",
+    competitors: initialData?.competitors || "",
     websiteSpeedScore: initialData?.websiteSpeedScore || "",
     lighthousePerformance: initialData?.lighthousePerformance || "",
     lighthouseAccessibility: initialData?.lighthouseAccessibility || "",
@@ -65,43 +79,48 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     localSeoScore: initialData?.localSeoScore || "",
   });
 
+  const [selectedServices, setSelectedServices] = useState<string[]>(
+    initialData?.serviceIds || initialData?.services?.map((s: any) => s.serviceId || s.id) || []
+  );
+  const [selectedSections, setSelectedSections] = useState<string[]>(
+    initialData?.sectionIds || initialData?.sections?.map((s: any) => s.reusableSectionId || s.id) || sections.map((s) => s.id)
+  );
+
+  const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
   const [placesResults, setPlacesResults] = useState<any[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
+  const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
   const [localSeoGrid, setLocalSeoGrid] = useState<any[]>(initialData?.localSeoGrid || []);
 
+  function updateField(key: string, value: any) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
   async function fetchPageSpeed() {
-    const urlInput = document.querySelector<HTMLInputElement>('input[name="websiteUrl"]');
-    const url = urlInput?.value;
-    if (!url) { alert("Please enter a Website URL first"); return; }
+    if (!form.websiteUrl) { alert("Please enter a Website URL first"); return; }
     setFetchingScores(true);
     try {
       const res = await fetch("/api/page-speed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: form.websiteUrl }),
       });
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
-      setScores({
+      setForm(prev => ({
+        ...prev,
         websiteSpeedScore: data.scores.performance,
         lighthousePerformance: data.scores.performance,
         lighthouseAccessibility: data.scores.accessibility,
         lighthouseSeo: data.scores.seo,
         lighthouseBestPractices: data.scores.bestPractices,
-        googleProfileScore: scores.googleProfileScore,
-        localSeoScore: scores.localSeoScore,
-      });
-    } catch (err) {
-      alert("Failed to fetch PageSpeed scores");
-    }
+      }));
+    } catch { alert("Failed to fetch PageSpeed scores"); }
     setFetchingScores(false);
   }
 
   async function searchGooglePlaces() {
-    const nameInput = document.querySelector<HTMLInputElement>('input[name="businessName"]');
-    const addressInput = document.querySelector<HTMLInputElement>('input[name="address"]');
-    const query = `${nameInput?.value || ""} ${addressInput?.value || ""}`.trim();
+    const query = `${form.businessName} ${form.address}`.trim();
     if (!query) { alert("Please enter a business name and address first"); return; }
     setFetchingPlaces(true);
     try {
@@ -113,9 +132,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setPlacesResults(data.results || []);
-    } catch (err) {
-      alert("Failed to search Google Places");
-    }
+    } catch { alert("Failed to search Google Places"); }
     setFetchingPlaces(false);
   }
 
@@ -130,13 +147,8 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setSelectedPlace(data);
-      setScores(prev => ({
-        ...prev,
-        googleProfileScore: data.totalScore || "",
-      }));
-    } catch (err) {
-      alert("Failed to fetch place details");
-    }
+      setForm(prev => ({ ...prev, googleProfileScore: data.totalScore || "" }));
+    } catch { alert("Failed to fetch place details"); }
     setFetchingPlaces(false);
   }
 
@@ -147,34 +159,21 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     if (rankNum !== null && (isNaN(rankNum) || rankNum < 1)) return;
     setLocalSeoGrid(prev => {
       const existing = prev.find((g: any) => g.row === row && g.col === col);
-      if (existing) {
-        return prev.map((g: any) => g.row === row && g.col === col ? { ...g, rank: rankNum } : g);
-      }
+      if (existing) return prev.map((g: any) => g.row === row && g.col === col ? { ...g, rank: rankNum } : g);
       return [...prev, { row, col, lat: 0, lng: 0, rank: rankNum }];
     });
   }
 
   function initEmptyGrid() {
     const grid = [];
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        grid.push({ row: r, col: c, lat: 0, lng: 0, rank: null });
-      }
-    }
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) grid.push({ row: r, col: c, lat: 0, lng: 0, rank: null });
     setLocalSeoGrid(grid);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const data: any = {};
-    formData.forEach((value, key) => { data[key] = value; });
-    data.serviceIds = selectedServices;
-    data.sectionIds = selectedSections;
-    data.localSeoGrid = localSeoGrid;
-    data.googleBusinessData = selectedPlace;
-    Object.assign(data, scores);
+    const data = { ...form, serviceIds: selectedServices, sectionIds: selectedSections, localSeoGrid, googleBusinessData: selectedPlace };
     await onSubmit(data);
   }
 
@@ -207,18 +206,18 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Business Basics</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input name="businessName" label="Business Name" defaultValue={initialData?.businessName} required icon="store" />
-            <Input name="contactName" label="Contact Person" defaultValue={initialData?.contactName} icon="person" />
-            <Input name="contactEmail" label="Email" type="email" defaultValue={initialData?.contactEmail} icon="mail" />
-            <Input name="contactPhone" label="Phone" defaultValue={initialData?.contactPhone} icon="call" />
-            <Input name="websiteUrl" label="Website URL" defaultValue={initialData?.websiteUrl} placeholder="https://" icon="language" />
-            <Select name="industry" label="Industry" options={INDUSTRIES} defaultValue={initialData?.industry || ""} />
-            <Input name="address" label="Business Address" defaultValue={initialData?.address} className="md:col-span-2" icon="location_on" />
-            <Input name="serviceArea" label="Service Area / Locations" defaultValue={initialData?.serviceArea} icon="map" />
-            <Input name="googleMapsLink" label="Google Maps Link" defaultValue={initialData?.googleMapsLink} icon="place" />
+            <Input name="businessName" label="Business Name" value={form.businessName} onChange={e => updateField("businessName", e.target.value)} required icon="store" />
+            <Input name="contactName" label="Contact Person" value={form.contactName} onChange={e => updateField("contactName", e.target.value)} icon="person" />
+            <Input name="contactEmail" label="Email" type="email" value={form.contactEmail} onChange={e => updateField("contactEmail", e.target.value)} icon="mail" />
+            <Input name="contactPhone" label="Phone" value={form.contactPhone} onChange={e => updateField("contactPhone", e.target.value)} icon="call" />
+            <Input name="websiteUrl" label="Website URL" value={form.websiteUrl} onChange={e => updateField("websiteUrl", e.target.value)} placeholder="https://" icon="language" />
+            <Select name="industry" label="Industry" options={INDUSTRIES} value={form.industry} onChange={e => updateField("industry", e.target.value)} />
+            <Input name="address" label="Business Address" value={form.address} onChange={e => updateField("address", e.target.value)} className="md:col-span-2" icon="location_on" />
+            <Input name="serviceArea" label="Service Area / Locations" value={form.serviceArea} onChange={e => updateField("serviceArea", e.target.value)} icon="map" />
+            <Input name="googleMapsLink" label="Google Maps Link" value={form.googleMapsLink} onChange={e => updateField("googleMapsLink", e.target.value)} icon="place" />
             <div>
               <label className="block text-[13px] font-medium text-on-surface mb-1.5">Currency</label>
-              <select name="currency" defaultValue={initialData?.currency || "USD"}
+              <select name="currency" value={form.currency} onChange={e => updateField("currency", e.target.value)}
                 className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] bg-white text-on-surface focus:outline-none focus:ring-2 focus:ring-[#004527]/15 focus:border-[#004527]">
                 {CURRENCIES.map(c => (<option key={c.code} value={c.code}>{c.symbol} {c.name}</option>))}
               </select>
@@ -236,28 +235,23 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Online Presence</h3>
             </div>
             <div className="space-y-4">
-              <Input name="googleBusinessProfile" label="Google Business Profile Link" defaultValue={initialData?.googleBusinessProfile} icon="business_center" />
+              <Input name="googleBusinessProfile" label="Google Business Profile Link" value={form.googleBusinessProfile} onChange={e => updateField("googleBusinessProfile", e.target.value)} icon="business_center" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input name="currentLeadVolume" label="Current Lead Volume" defaultValue={initialData?.currentLeadVolume} placeholder="e.g. 50/month" icon="trending_up" />
-                <Input name="currentMonthlyTraffic" label="Monthly Website Traffic" defaultValue={initialData?.currentMonthlyTraffic} placeholder="e.g. 2000" icon="bar_chart" />
-                <Input name="approximateRevenue" label="Approximate Revenue" defaultValue={initialData?.approximateRevenue} placeholder="e.g. $500K" icon="payments" />
+                <Input name="currentLeadVolume" label="Current Lead Volume" value={form.currentLeadVolume} onChange={e => updateField("currentLeadVolume", e.target.value)} placeholder="e.g. 50/month" icon="trending_up" />
+                <Input name="currentMonthlyTraffic" label="Monthly Website Traffic" value={form.currentMonthlyTraffic} onChange={e => updateField("currentMonthlyTraffic", e.target.value)} placeholder="e.g. 2000" icon="bar_chart" />
+                <Input name="approximateRevenue" label="Approximate Revenue" value={form.approximateRevenue} onChange={e => updateField("approximateRevenue", e.target.value)} placeholder="e.g. $500K" icon="payments" />
               </div>
-              <Input name="existingCrm" label="Existing CRM / Tools" defaultValue={initialData?.existingCrm} icon="hub" />
+              <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
             </div>
           </div>
 
-          {/* Google Business Profile Lookup */}
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="material-symbols-outlined text-[18px] text-[#004527]">search</span>
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Google Business Profile Lookup</h3>
             </div>
             <p className="text-[12px] text-on-surface-variant mb-3">Auto-fetch business details, reviews, and photos from Google</p>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" loading={fetchingPlaces} onClick={searchGooglePlaces}>
-                Search Google Places
-              </Button>
-            </div>
+            <Button type="button" variant="outline" size="sm" loading={fetchingPlaces} onClick={searchGooglePlaces}>Search Google Places</Button>
             {placesResults.length > 0 && (
               <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
                 {placesResults.map((p: any) => (
@@ -291,11 +285,11 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Discovery & Goals</h3>
             </div>
             <div className="space-y-4">
-              <Textarea name="discoveryNotes" label="Discovery Notes" defaultValue={initialData?.discoveryNotes} rows={3} />
-              <Textarea name="painPoints" label="Client Pain Points" defaultValue={initialData?.painPoints} rows={3} />
-              <Textarea name="goals" label="Client Goals" defaultValue={initialData?.goals} rows={3} />
-              <Textarea name="brandNotes" label="Brand Notes" defaultValue={initialData?.brandNotes} rows={2} />
-              <Textarea name="competitors" label="Competitors (URLs)" defaultValue={initialData?.competitors} rows={2} />
+              <Textarea name="discoveryNotes" label="Discovery Notes" value={form.discoveryNotes} onChange={e => updateField("discoveryNotes", e.target.value)} rows={3} />
+              <Textarea name="painPoints" label="Client Pain Points" value={form.painPoints} onChange={e => updateField("painPoints", e.target.value)} rows={3} />
+              <Textarea name="goals" label="Client Goals" value={form.goals} onChange={e => updateField("goals", e.target.value)} rows={3} />
+              <Textarea name="brandNotes" label="Brand Notes" value={form.brandNotes} onChange={e => updateField("brandNotes", e.target.value)} rows={2} />
+              <Textarea name="competitors" label="Competitors (URLs)" value={form.competitors} onChange={e => updateField("competitors", e.target.value)} rows={2} />
             </div>
           </div>
         </>
@@ -310,40 +304,28 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <span className="material-symbols-outlined text-[18px] text-[#004527]">speed</span>
                 <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Website Speed & Lighthouse Scores</h3>
               </div>
-              <Button type="button" variant="outline" size="sm" loading={fetchingScores} onClick={fetchPageSpeed}>
-                Auto-fetch from PageSpeed
-              </Button>
+              <Button type="button" variant="outline" size="sm" loading={fetchingScores} onClick={fetchPageSpeed}>Auto-fetch from PageSpeed</Button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Speed Score</label>
-                <input type="number" name="websiteSpeedScore" min="0" max="100" value={scores.websiteSpeedScore}
-                  onChange={e => setScores(s => ({ ...s, websiteSpeedScore: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="websiteSpeedScore" min="0" max="100" value={form.websiteSpeedScore} onChange={e => updateField("websiteSpeedScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Performance</label>
-                <input type="number" name="lighthousePerformance" min="0" max="100" value={scores.lighthousePerformance}
-                  onChange={e => setScores(s => ({ ...s, lighthousePerformance: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthousePerformance" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Accessibility</label>
-                <input type="number" name="lighthouseAccessibility" min="0" max="100" value={scores.lighthouseAccessibility}
-                  onChange={e => setScores(s => ({ ...s, lighthouseAccessibility: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseAccessibility" min="0" max="100" value={form.lighthouseAccessibility} onChange={e => updateField("lighthouseAccessibility", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">SEO</label>
-                <input type="number" name="lighthouseSeo" min="0" max="100" value={scores.lighthouseSeo}
-                  onChange={e => setScores(s => ({ ...s, lighthouseSeo: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseSeo" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Best Practices</label>
-                <input type="number" name="lighthouseBestPractices" min="0" max="100" value={scores.lighthouseBestPractices}
-                  onChange={e => setScores(s => ({ ...s, lighthouseBestPractices: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseBestPractices" min="0" max="100" value={form.lighthouseBestPractices} onChange={e => updateField("lighthouseBestPractices", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
             </div>
           </div>
@@ -356,53 +338,37 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Google Profile Score</label>
-                <input type="number" name="googleProfileScore" min="0" max="100" value={scores.googleProfileScore}
-                  onChange={e => setScores(s => ({ ...s, googleProfileScore: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="googleProfileScore" min="0" max="100" value={form.googleProfileScore} onChange={e => updateField("googleProfileScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Local SEO Score</label>
-                <input type="number" name="localSeoScore" min="0" max="100" value={scores.localSeoScore}
-                  onChange={e => setScores(s => ({ ...s, localSeoScore: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="localSeoScore" min="0" max="100" value={form.localSeoScore} onChange={e => updateField("localSeoScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
             </div>
           </div>
 
-          {/* Local SEO Grid */}
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px] text-[#004527]">grid_view</span>
                 <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Local SEO Grid</h3>
               </div>
-              {localSeoGrid.length === 0 && (
-                <Button type="button" variant="outline" size="sm" onClick={initEmptyGrid}>
-                  Initialize 7x7 Grid
-                </Button>
-              )}
+              {localSeoGrid.length === 0 && <Button type="button" variant="outline" size="sm" onClick={initEmptyGrid}>Initialize 7x7 Grid</Button>}
             </div>
             {localSeoGrid.length > 0 ? (
               <div className="overflow-x-auto">
                 <div className="inline-grid gap-1.5" style={{ gridTemplateColumns: "repeat(7, minmax(40px, 1fr))" }}>
                   {Array.from({ length: 49 }, (_, i) => {
-                    const row = Math.floor(i / 7);
-                    const col = i % 7;
+                    const row = Math.floor(i / 7), col = i % 7;
                     const cell = localSeoGrid.find((g: any) => g.row === row && g.col === col);
                     const rank = cell?.rank;
                     const isCenter = row === 3 && col === 3;
                     let bg = "#6b7280";
-                    if (rank != null) {
-                      if (rank <= 3) bg = "#15803d";
-                      else if (rank <= 5) bg = "#f59e0b";
-                      else if (rank <= 10) bg = "#f97316";
-                      else bg = "#dc2626";
-                    }
+                    if (rank != null) { if (rank <= 3) bg = "#15803d"; else if (rank <= 5) bg = "#f59e0b"; else if (rank <= 10) bg = "#f97316"; else bg = "#dc2626"; }
                     return (
                       <button key={i} type="button" onClick={() => handleGridCellClick(row, col)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold text-white cursor-pointer hover:scale-110 transition-transform ${
-                          isCenter ? "ring-2 ring-offset-1 ring-[#004527]" : ""
-                        }`} style={{ backgroundColor: bg }}>
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold text-white cursor-pointer hover:scale-110 transition-transform ${isCenter ? "ring-2 ring-offset-1 ring-[#004527]" : ""}`}
+                        style={{ backgroundColor: bg }}>
                         {rank != null ? (rank >= 21 ? "21+" : rank) : "NF"}
                       </button>
                     );
@@ -410,9 +376,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 </div>
                 <p className="text-[11px] text-on-surface-variant mt-2">Click any cell to set ranking position. Center = business location.</p>
               </div>
-            ) : (
-              <p className="text-[12px] text-on-surface-variant">Click &ldquo;Initialize 7x7 Grid&rdquo; to start mapping local search rankings.</p>
-            )}
+            ) : <p className="text-[12px] text-on-surface-variant">Click &ldquo;Initialize 7x7 Grid&rdquo; to start mapping local search rankings.</p>}
           </div>
         </>
       )}
@@ -488,11 +452,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
 
       {/* Navigation */}
       <div className="flex justify-between gap-3 pt-2">
-        <div>
-          {activeTab > 0 && (
-            <Button type="button" variant="outline" onClick={() => setActiveTab(activeTab - 1)}>Previous</Button>
-          )}
-        </div>
+        <div>{activeTab > 0 && <Button type="button" variant="outline" onClick={() => setActiveTab(activeTab - 1)}>Previous</Button>}</div>
         <div className="flex gap-3">
           <Button type="button" variant="outline" onClick={() => history.back()}>Cancel</Button>
           {activeTab < TABS.length - 1 ? (
