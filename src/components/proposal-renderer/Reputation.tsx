@@ -6,6 +6,7 @@ interface ReputationProps {
     gbpRating?: number | null;
     gbpReviewCount?: number | null;
     gbpBusinessStatus?: string | null;
+    googleBusinessData?: any;
   };
 }
 
@@ -27,9 +28,14 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function Reputation({ proposal }: ReputationProps) {
-  const rating = proposal.gbpRating || 0;
-  const reviewCount = proposal.gbpReviewCount || 0;
+  const gbpData = proposal.googleBusinessData as any;
+  const rating = gbpData?.rating || proposal.gbpRating || 0;
+  const reviewCount = gbpData?.reviewCount || proposal.gbpReviewCount || 0;
+  const reviews = gbpData?.reviews || [];
   const ratingPercent = Math.round((rating / 5) * 100);
+  
+  const positiveReviews = reviews.filter((r: any) => (r.rating || 0) >= 4).length;
+  const replyRate = 0;
 
   return (
     <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -58,11 +64,11 @@ export default function Reputation({ proposal }: ReputationProps) {
             <div className="text-xs text-gray-500 mt-1">Average Rating</div>
           </div>
           <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-center">
-            <div className="text-2xl font-bold text-green-600">{reviewCount}</div>
+            <div className="text-2xl font-bold text-green-600">{positiveReviews}</div>
             <div className="text-xs text-gray-500 mt-1">Positive Reviews</div>
           </div>
           <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-center">
-            <div className="text-2xl font-bold text-[#121d26]">0%</div>
+            <div className="text-2xl font-bold text-[#121d26]">{replyRate}%</div>
             <div className="text-xs text-gray-500 mt-1">Reply Rate</div>
           </div>
         </div>
@@ -112,6 +118,26 @@ export default function Reputation({ proposal }: ReputationProps) {
             </p>
           </div>
         </div>
+
+        {/* Recent Reviews */}
+        {reviews.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-bold text-[#121d26] mb-4">Recent Reviews</h3>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {reviews.slice(0, 5).map((review: any, i: number) => (
+                <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    {review.profilePhoto && <img src={review.profilePhoto} alt="" className="w-6 h-6 rounded-full" />}
+                    <span className="text-[12px] font-medium text-[#121d26]">{review.author}</span>
+                    <StarRating rating={review.rating} />
+                    <span className="text-[11px] text-gray-500 ml-auto">{review.time}</span>
+                  </div>
+                  {review.text && <p className="text-[12px] text-gray-600 line-clamp-3">{review.text}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

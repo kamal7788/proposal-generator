@@ -100,18 +100,20 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setAssessmentFetched(true);
 
     // Auto-fetch PageSpeed if website URL is set and scores are empty
-    if (hasWebsite && form.websiteUrl && !form.lighthousePerformance) {
+    const normalizedUrl = normalizeUrl(form.websiteUrl);
+    if (hasWebsite && normalizedUrl && !form.lighthousePerformance) {
       setFetchingScores(true);
       try {
         const res = await fetch("/api/page-speed", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: form.websiteUrl }),
+          body: JSON.stringify({ url: normalizedUrl }),
         });
         const data = await res.json();
         if (!data.error) {
           setForm(prev => ({
             ...prev,
+            websiteUrl: normalizedUrl,
             websiteSpeedScore: data.scores.performance,
             lighthousePerformance: data.scores.performance,
             lighthouseAccessibility: data.scores.accessibility,
@@ -165,19 +167,30 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
+  function normalizeUrl(url: string): string {
+    if (!url) return url;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  }
+
   async function fetchPageSpeed() {
-    if (!form.websiteUrl) { alert("Please enter a Website URL first"); return; }
+    const url = normalizeUrl(form.websiteUrl);
+    if (!url) { alert("Please enter a Website URL first"); return; }
     setFetchingScores(true);
     try {
       const res = await fetch("/api/page-speed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: form.websiteUrl }),
+        body: JSON.stringify({ url }),
       });
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setForm(prev => ({
         ...prev,
+        websiteUrl: url,
         websiteSpeedScore: data.scores.performance,
         lighthousePerformance: data.scores.performance,
         lighthouseAccessibility: data.scores.accessibility,
@@ -279,7 +292,34 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <Input name="contactName" label="Contact Person" value={form.contactName} onChange={e => updateField("contactName", e.target.value)} icon="person" />
             <Input name="contactEmail" label="Email" type="email" value={form.contactEmail} onChange={e => updateField("contactEmail", e.target.value)} icon="mail" />
             <Input name="contactPhone" label="Phone" value={form.contactPhone} onChange={e => updateField("contactPhone", e.target.value)} icon="call" />
-            <Input name="websiteUrl" label="Website URL" value={form.websiteUrl} onChange={e => updateField("websiteUrl", e.target.value)} placeholder="https://" icon="language" />
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-[#c3cdd8]/50">
+                <button
+                  type="button"
+                  onClick={() => setHasWebsite(!hasWebsite)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${hasWebsite ? "bg-[#004527]" : "bg-gray-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${hasWebsite ? "translate-x-5" : ""}`} />
+                </button>
+                <div>
+                  <p className="text-[13px] font-medium text-on-surface">Client has a website</p>
+                  <p className="text-[11px] text-on-surface-variant">Toggle off if the business doesn't have a website yet</p>
+                </div>
+              </div>
+            </div>
+            {hasWebsite ? (
+              <Input name="websiteUrl" label="Website URL" value={form.websiteUrl} onChange={e => updateField("websiteUrl", e.target.value)} placeholder="https://" icon="language" />
+            ) : (
+              <div className="md:col-span-2 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-orange-600 mt-0.5">info</span>
+                  <div>
+                    <p className="text-[13px] font-medium text-orange-800">No Website Detected</p>
+                    <p className="text-[12px] text-orange-700 mt-1">The proposal will focus on missed opportunities and the revenue gap from not having an online presence. Website performance scores will be skipped.</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <Select name="industry" label="Industry" options={INDUSTRIES} value={form.industry} onChange={e => updateField("industry", e.target.value)} />
             <Input name="address" label="Business Address" value={form.address} onChange={e => updateField("address", e.target.value)} className="md:col-span-2" icon="location_on" />
             <Input name="serviceArea" label="Service Area / Locations" value={form.serviceArea} onChange={e => updateField("serviceArea", e.target.value)} icon="map" />
@@ -304,28 +344,13 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Online Presence</h3>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-[#c3cdd8]/50">
-                <button
-                  type="button"
-                  onClick={() => setHasWebsite(!hasWebsite)}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${hasWebsite ? "bg-[#004527]" : "bg-gray-300"}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${hasWebsite ? "translate-x-5" : ""}`} />
-                </button>
-                <div>
-                  <p className="text-[13px] font-medium text-on-surface">Client has a website</p>
-                  <p className="text-[11px] text-on-surface-variant">Toggle off if the business doesn't have a website yet</p>
-                </div>
-              </div>
-              {hasWebsite ? (
-                <Input name="websiteUrl" label="Website URL" value={form.websiteUrl} onChange={e => updateField("websiteUrl", e.target.value)} placeholder="https://" icon="language" />
-              ) : (
+              {!hasWebsite && (
                 <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <span className="material-symbols-outlined text-[18px] text-orange-600 mt-0.5">info</span>
                     <div>
                       <p className="text-[13px] font-medium text-orange-800">No Website Detected</p>
-                      <p className="text-[12px] text-orange-700 mt-1">The proposal will focus on missed opportunities and the revenue gap from not having an online presence. Website performance scores will be skipped.</p>
+                      <p className="text-[12px] text-orange-700 mt-1">Website performance analysis will be skipped. The proposal will focus on building an online presence from scratch.</p>
                     </div>
                   </div>
                 </div>

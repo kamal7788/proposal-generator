@@ -7,6 +7,7 @@ interface WebsitePerformanceProps {
     seoScore?: number | null;
     bestPracticesScore?: number | null;
     websiteUrl?: string | null;
+    hasWebsite?: boolean | null;
     mobileSpeed?: number | null;
     desktopSpeed?: number | null;
   };
@@ -91,12 +92,60 @@ function SpeedBar({ score, label }: { score: number; label: string }) {
 }
 
 export default function WebsitePerformance({ proposal }: WebsitePerformanceProps) {
+  const hasWebsite = proposal.hasWebsite !== false;
   const performance = proposal.performanceScore || 0;
   const accessibility = proposal.accessibilityScore || 0;
   const seo = proposal.seoScore || 0;
   const bestPractices = proposal.bestPracticesScore || 0;
 
   const overallScore = Math.round((performance + accessibility + seo + bestPractices) / 4);
+
+  if (!hasWebsite) {
+    return (
+      <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-[#004527] text-white px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Website Performance</h2>
+              <p className="text-white/80 mt-1 text-sm">
+                No website detected - opportunity analysis below.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="p-8">
+          <div className="p-6 bg-orange-50 border border-orange-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-[24px] text-orange-600">language_off</span>
+              <div>
+                <h3 className="text-[16px] font-bold text-orange-800">No Website Available</h3>
+                <p className="text-[14px] text-orange-700 mt-2 leading-relaxed">
+                  This business doesn't have a website yet. This represents a significant missed opportunity:
+                </p>
+                <ul className="mt-3 space-y-2 text-[13px] text-orange-700">
+                  <li className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">trending_down</span>
+                    Missing out on 93% of online experiences that start with a search engine
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">people</span>
+                    Competitors with websites capture customers before you even have a chance
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">payments</span>
+                    No 24/7 lead generation or automated customer acquisition
+                  </li>
+                </ul>
+                <p className="mt-4 text-[13px] text-orange-800 font-medium">
+                  Building a professional website is the first step to competing in today's digital marketplace.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
