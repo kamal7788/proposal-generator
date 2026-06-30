@@ -53,6 +53,16 @@ export async function PATCH(
     }
   }
 
+  // Handle revenue baseline fields
+  const numericFields = ["avgCustomerSpend", "customersPerDay", "workingDaysPerMonth"];
+  for (const field of numericFields) {
+    if (body[field] !== undefined && body[field] !== "" && body[field] !== null) {
+      body[field] = Number(body[field]);
+    } else {
+      body[field] = null;
+    }
+  }
+
   const proposal = await db.proposal.update({
     where: { id },
     data: body,

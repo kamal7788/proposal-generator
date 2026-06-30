@@ -64,6 +64,9 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     currentLeadVolume: initialData?.currentLeadVolume || "",
     currentMonthlyTraffic: initialData?.currentMonthlyTraffic || "",
     approximateRevenue: initialData?.approximateRevenue || "",
+    avgCustomerSpend: initialData?.avgCustomerSpend || "",
+    customersPerDay: initialData?.customersPerDay || "",
+    workingDaysPerMonth: initialData?.workingDaysPerMonth || 26,
     existingCrm: initialData?.existingCrm || "",
     discoveryNotes: initialData?.discoveryNotes || "",
     painPoints: initialData?.painPoints || "",
@@ -91,7 +94,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [assessmentFetched, setAssessmentFetched] = useState(false);
   const [placesResults, setPlacesResults] = useState<any[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
-  const [localSeoGrid, setLocalSeoGrid] = useState<any[]>(initialData?.localSeoGrid || []);
   const [hasWebsite, setHasWebsite] = useState(initialData?.hasWebsite !== false);
 
   // Auto-fetch assessment data when navigating to Assessment tab
@@ -152,12 +154,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       } catch {}
       setFetchingPlaces(false);
     }
-
-    // Auto-init empty grid if none exists
-    if (localSeoGrid.length === 0) {
-      initEmptyGrid();
-    }
-  }, [form.websiteUrl, form.businessName, form.address, form.lighthousePerformance, selectedPlace, localSeoGrid.length, assessmentFetched]);
+  }, [form.websiteUrl, form.businessName, form.address, form.lighthousePerformance, selectedPlace, assessmentFetched]);
 
   useEffect(() => {
     if (activeTab === 2) autoFetchAssessment();
@@ -234,28 +231,19 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setFetchingPlaces(false);
   }
 
-  function handleGridCellClick(row: number, col: number) {
-    const rank = prompt("Enter ranking position (1-21, or leave empty for NF):");
-    if (rank === null) return;
-    const rankNum = rank === "" ? null : parseInt(rank);
-    if (rankNum !== null && (isNaN(rankNum) || rankNum < 1)) return;
-    setLocalSeoGrid(prev => {
-      const existing = prev.find((g: any) => g.row === row && g.col === col);
-      if (existing) return prev.map((g: any) => g.row === row && g.col === col ? { ...g, rank: rankNum } : g);
-      return [...prev, { row, col, lat: 0, lng: 0, rank: rankNum }];
-    });
-  }
-
-  function initEmptyGrid() {
-    const grid = [];
-    for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) grid.push({ row: r, col: c, lat: 0, lng: 0, rank: null });
-    setLocalSeoGrid(grid);
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const data = { ...form, serviceIds: selectedServices, sectionIds: selectedSections, localSeoGrid, googleBusinessData: selectedPlace, hasWebsite };
+    const data = {
+      ...form,
+      avgCustomerSpend: form.avgCustomerSpend ? Number(form.avgCustomerSpend) : null,
+      customersPerDay: form.customersPerDay ? Number(form.customersPerDay) : null,
+      workingDaysPerMonth: form.workingDaysPerMonth ? Number(form.workingDaysPerMonth) : 26,
+      serviceIds: selectedServices,
+      sectionIds: selectedSections,
+      googleBusinessData: selectedPlace,
+      hasWebsite,
+    };
     await onSubmit(data);
   }
 
@@ -372,6 +360,48 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               </div>
               <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
             </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="material-symbols-outlined text-[18px] text-[#004527]">calculate</span>
+              <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Revenue Baseline</h3>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-4">Set baseline metrics to calculate ROI projections for this proposal.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                name="avgCustomerSpend"
+                label="Avg Customer Spend"
+                value={form.avgCustomerSpend}
+                onChange={e => updateField("avgCustomerSpend", e.target.value)}
+                placeholder="e.g. 2000"
+                icon="payments"
+              />
+              <Input
+                name="customersPerDay"
+                label="Customers per Day"
+                value={form.customersPerDay}
+                onChange={e => updateField("customersPerDay", e.target.value)}
+                placeholder="e.g. 10"
+                icon="group"
+              />
+              <Input
+                name="workingDaysPerMonth"
+                label="Working Days/Month"
+                value={form.workingDaysPerMonth}
+                onChange={e => updateField("workingDaysPerMonth", e.target.value)}
+                placeholder="e.g. 26"
+                icon="calendar_month"
+              />
+            </div>
+            {form.avgCustomerSpend && form.customersPerDay && (
+              <div className="mt-4 p-3 bg-[#004527]/5 rounded-lg border border-[#004527]/10">
+                <p className="text-[12px] text-on-surface-variant">Monthly Revenue Baseline:</p>
+                <p className="text-lg font-bold text-[#004527] font-[family-name:var(--font-display)]">
+                  {parseInt(form.avgCustomerSpend || "0") * parseInt(form.customersPerDay || "0") * parseInt(form.workingDaysPerMonth || "26")} {form.currency}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
@@ -493,46 +523,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <input type="number" name="localSeoScore" min="0" max="100" value={form.localSeoScore} onChange={e => updateField("localSeoScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-[#004527]">grid_view</span>
-                <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Local SEO Grid</h3>
-              </div>
-              {localSeoGrid.length === 0 && !fetchingPlaces && (
-                <Button type="button" variant="outline" size="sm" onClick={initEmptyGrid}>Initialize 7x7 Grid</Button>
-              )}
-              {fetchingPlaces && (
-                <span className="text-[12px] text-[#004527] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-                  Fetching Google data...
-                </span>
-              )}
-            </div>
-            {localSeoGrid.length > 0 ? (
-              <div className="overflow-x-auto">
-                <div className="inline-grid gap-1.5" style={{ gridTemplateColumns: "repeat(7, minmax(40px, 1fr))" }}>
-                  {Array.from({ length: 49 }, (_, i) => {
-                    const row = Math.floor(i / 7), col = i % 7;
-                    const cell = localSeoGrid.find((g: any) => g.row === row && g.col === col);
-                    const rank = cell?.rank;
-                    const isCenter = row === 3 && col === 3;
-                    let bg = "#6b7280";
-                    if (rank != null) { if (rank <= 3) bg = "#15803d"; else if (rank <= 5) bg = "#f59e0b"; else if (rank <= 10) bg = "#f97316"; else bg = "#dc2626"; }
-                    return (
-                      <button key={i} type="button" onClick={() => handleGridCellClick(row, col)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold text-white cursor-pointer hover:scale-110 transition-transform ${isCenter ? "ring-2 ring-offset-1 ring-[#004527]" : ""}`}
-                        style={{ backgroundColor: bg }}>
-                        {rank != null ? (rank >= 21 ? "21+" : rank) : "NF"}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-on-surface-variant mt-2">Click any cell to set ranking position. Center = business location.</p>
-              </div>
-            ) : <p className="text-[12px] text-on-surface-variant">Click &ldquo;Initialize 7x7 Grid&rdquo; to start mapping local search rankings.</p>}
           </div>
         </>
       )}

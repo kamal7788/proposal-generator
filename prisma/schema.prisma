@@ -85,6 +85,9 @@ model Proposal {
   currentLeadVolume     String?
   currentMonthlyTraffic String?
   approximateRevenue    String?
+  avgCustomerSpend      Float?
+  customersPerDay       Int?
+  workingDaysPerMonth   Int?
   existingCrm           String?
   competitors           String?   @db.Text
   logoUrl               String?

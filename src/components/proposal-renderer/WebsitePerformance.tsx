@@ -2,14 +2,13 @@
 
 interface WebsitePerformanceProps {
   proposal: {
-    performanceScore?: number | null;
-    accessibilityScore?: number | null;
-    seoScore?: number | null;
-    bestPracticesScore?: number | null;
+    lighthousePerformance?: number | null;
+    lighthouseAccessibility?: number | null;
+    lighthouseSeo?: number | null;
+    lighthouseBestPractices?: number | null;
+    websiteSpeedScore?: number | null;
     websiteUrl?: string | null;
     hasWebsite?: boolean | null;
-    mobileSpeed?: number | null;
-    desktopSpeed?: number | null;
   };
 }
 
@@ -93,10 +92,10 @@ function SpeedBar({ score, label }: { score: number; label: string }) {
 
 export default function WebsitePerformance({ proposal }: WebsitePerformanceProps) {
   const hasWebsite = proposal.hasWebsite !== false;
-  const performance = proposal.performanceScore || 0;
-  const accessibility = proposal.accessibilityScore || 0;
-  const seo = proposal.seoScore || 0;
-  const bestPractices = proposal.bestPracticesScore || 0;
+  const performance = proposal.lighthousePerformance || 0;
+  const accessibility = proposal.lighthouseAccessibility || 0;
+  const seo = proposal.lighthouseSeo || 0;
+  const bestPractices = proposal.lighthouseBestPractices || 0;
 
   const overallScore = Math.round((performance + accessibility + seo + bestPractices) / 4);
 
@@ -168,10 +167,10 @@ export default function WebsitePerformance({ proposal }: WebsitePerformanceProps
           <h3 className="text-sm font-bold text-[#121d26] mb-4">Page Speed</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <SpeedBar score={proposal.mobileSpeed || performance} label="Mobile" />
+              <SpeedBar score={proposal.websiteSpeedScore || performance} label="Mobile" />
             </div>
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <SpeedBar score={proposal.desktopSpeed || Math.min(100, performance + 20)} label="Desktop" />
+              <SpeedBar score={Math.min(100, (proposal.websiteSpeedScore || performance) + 15)} label="Desktop" />
             </div>
           </div>
         </div>

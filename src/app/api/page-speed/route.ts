@@ -43,8 +43,26 @@ export async function POST(req: NextRequest) {
     const cls = lighthouse?.audits?.["cumulative-layout-shift"];
     const lcp = lighthouse?.audits?.["largest-contentful-paint"];
 
+    // Fetch desktop scores
+    let desktopScores = null;
+    try {
+      const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=desktop`;
+      const desktopRes = await fetch(desktopUrl);
+      const desktopData = await desktopRes.json();
+      if (!desktopData.error) {
+        const dc = desktopData.lighthouseResult?.categories || {};
+        desktopScores = {
+          performance: Math.round((dc.performance?.score || 0) * 100),
+          accessibility: Math.round((dc.accessibility?.score || 0) * 100),
+          seo: Math.round((dc.seo?.score || 0) * 100),
+          bestPractices: Math.round((dc["best-practices"]?.score || 0) * 100),
+        };
+      }
+    } catch {}
+
     return NextResponse.json({
       scores,
+      desktopScores,
       metrics: {
         speedIndex: speedIndex?.displayValue || null,
         firstContentfulPaint: fcp?.displayValue || null,

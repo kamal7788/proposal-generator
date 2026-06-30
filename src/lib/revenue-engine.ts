@@ -5,12 +5,67 @@ export interface RevenueAssumption {
   expectedValue: number;
   highValue: number;
   unit: string;
+  serviceId?: string;
+}
+
+export interface RevenueBaseline {
+  avgCustomerSpend: number;
+  customersPerDay: number;
+  workingDaysPerMonth: number;
 }
 
 export interface RevenueResult {
+  baseline: number;
   low: { monthly: number; annual: number };
   expected: { monthly: number; annual: number };
   high: { monthly: number; annual: number };
+}
+
+export function calculateBaseline(baseline: RevenueBaseline): number {
+  return baseline.avgCustomerSpend * baseline.customersPerDay * baseline.workingDaysPerMonth;
+}
+
+export function calculateRevenue(
+  assumptions: RevenueAssumption[],
+  baseline: RevenueBaseline,
+  timeHorizonMonths: number = 12
+): RevenueResult {
+  const monthlyBaseline = calculateBaseline(baseline);
+
+  const calcScenario = (
+    valueKey: "lowValue" | "expectedValue" | "highValue"
+  ) => {
+    let totalMultiplier = 1;
+    assumptions.forEach((a) => {
+      const val = a[valueKey] / 100;
+      totalMultiplier *= 1 + val;
+    });
+
+    const monthlyUplift = monthlyBaseline * (totalMultiplier - 1);
+    return {
+      monthly: Math.round(monthlyUplift),
+      annual: Math.round(monthlyUplift * timeHorizonMonths),
+    };
+  };
+
+  return {
+    baseline: monthlyBaseline,
+    low: calcScenario("lowValue"),
+    expected: calcScenario("expectedValue"),
+    high: calcScenario("highValue"),
+  };
+}
+
+export function calculateCostOfDoingNothing(
+  baseline: RevenueBaseline,
+  monthlyAttritionRate: number = 0.05
+): { monthly: number; annual: number } {
+  const monthlyBaseline = calculateBaseline(baseline);
+  const monthlyLoss = monthlyBaseline * monthlyAttritionRate;
+  return {
+    monthly: Math.round(monthlyLoss),
+    annual: Math.round(monthlyLoss * 12),
+  };
 }
 
 export const DEFAULT_ASSUMPTIONS: RevenueAssumption[] = [
@@ -63,45 +118,3 @@ export const DEFAULT_ASSUMPTIONS: RevenueAssumption[] = [
     unit: "percent",
   },
 ];
-
-export function calculateRevenue(
-  assumptions: RevenueAssumption[],
-  avgCustomerValue: number,
-  currentMonthlyLeads: number,
-  timeHorizonMonths: number = 12
-): RevenueResult {
-  const calcScenario = (
-    valueKey: "lowValue" | "expectedValue" | "highValue"
-  ) => {
-    let totalMultiplier = 1;
-    assumptions.forEach((a) => {
-      const val = a[valueKey] / 100;
-      totalMultiplier *= 1 + val;
-    });
-
-    const monthlyUplift =
-      currentMonthlyLeads * avgCustomerValue * (totalMultiplier - 1);
-    return {
-      monthly: Math.round(monthlyUplift),
-      annual: Math.round(monthlyUplift * timeHorizonMonths),
-    };
-  };
-
-  return {
-    low: calcScenario("lowValue"),
-    expected: calcScenario("expectedValue"),
-    high: calcScenario("highValue"),
-  };
-}
-
-export function calculateCostOfDoingNothing(
-  avgCustomerValue: number,
-  currentMonthlyLeads: number,
-  monthlyAttritionRate: number = 0.05
-): { monthly: number; annual: number } {
-  const monthlyLoss = currentMonthlyLeads * avgCustomerValue * monthlyAttritionRate;
-  return {
-    monthly: Math.round(monthlyLoss),
-    annual: Math.round(monthlyLoss * 12),
-  };
-}

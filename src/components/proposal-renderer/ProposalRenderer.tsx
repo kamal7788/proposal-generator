@@ -9,7 +9,6 @@ import GoogleInsightsPanel from "./GoogleInsightsPanel";
 import Listings from "./Listings";
 import Reputation from "./Reputation";
 import WebsitePerformance from "./WebsitePerformance";
-import LocalSeoGrid from "./LocalSeoGrid";
 import LocalRankTracker from "./LocalRankTracker";
 import AuditFindings from "./AuditFindings";
 import RevenueOpportunity from "./RevenueOpportunity";
@@ -48,7 +47,6 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
   const services = (proposal?.services || []).map((ps: any) => ({ ...ps.service, customPrice: ps.customPrice, packagePrice: ps.packagePrice, packageName: ps.packageName, notes: ps.notes }));
   const currency = proposal?.currency || "NPR";
   const googleData = proposal?.googleBusinessData as any;
-  const seoGrid = (proposal?.localSeoGrid as any[]) || [];
   const auditItems = proposal?.auditItems || [];
   const assumptions = proposal?.assumptions || [];
 
@@ -160,13 +158,8 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
         </div>
       </div>
 
-      {/* 11. SEO Analysis - Local SEO Grid + Local Rank Tracker */}
+      {/* 11. SEO Analysis - Local Rank Tracker */}
       <div id="analysis">
-        {seoGrid.length > 0 && (
-          <div className="py-8">
-            <LocalSeoGrid grid={seoGrid} businessName={proposal?.businessName} />
-          </div>
-        )}
         {proposal?.competitors && (
           <div className="py-8">
             <LocalRankTracker proposal={proposal} />
@@ -203,7 +196,16 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
             </div>
           </div>
         )}
-        <RevenueOpportunity assumptions={assumptions} revenue={proposal?.approximateRevenue} currency={currency} />
+        <RevenueOpportunity
+          assumptions={assumptions}
+          revenue={proposal?.approximateRevenue}
+          currency={currency}
+          baseline={proposal?.avgCustomerSpend ? {
+            avgCustomerSpend: proposal.avgCustomerSpend,
+            customersPerDay: proposal.customersPerDay || 0,
+            workingDaysPerMonth: proposal.workingDaysPerMonth || 26,
+          } : null}
+        />
       </div>
 
       {/* 14. Pricing / Package */}

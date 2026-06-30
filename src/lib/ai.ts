@@ -48,24 +48,25 @@ interface ProposalContext {
   gbpReviews: string;
   gbpSentiment: string;
   gbpReviewHighlights: string;
+  contactName: string;
+  avgCustomerSpend: string;
+  customersPerDay: string;
 }
 
 function extractContext(proposal: any): ProposalContext {
   const gbpData = proposal.googleBusinessData || {};
   const reviews = gbpData.reviews || [];
-  
-  // Extract review text and sentiment
+
   const reviewTexts = reviews.slice(0, 5).map((r: any) => `"${r.text || "No text"}" (${r.rating || "N/A"} stars)`).join("\n");
   const positiveReviews = reviews.filter((r: any) => (r.rating || 0) >= 4).length;
   const negativeReviews = reviews.filter((r: any) => (r.rating || 0) <= 2).length;
   const totalReviews = reviews.length || 0;
-  
+
   let sentiment = "Neutral";
   if (positiveReviews > negativeReviews * 2) sentiment = "Mostly Positive";
   else if (negativeReviews > positiveReviews * 2) sentiment = "Mostly Negative";
   else if (totalReviews > 0) sentiment = "Mixed";
-  
-  // Extract key themes from reviews
+
   const reviewHighlights = reviews.slice(0, 3).map((r: any) => {
     const text = r.text || "";
     return text.length > 100 ? text.slice(0, 100) + "..." : text;
@@ -101,14 +102,17 @@ function extractContext(proposal: any): ProposalContext {
     gbpReviews: reviewTexts,
     gbpSentiment: sentiment,
     gbpReviewHighlights: reviewHighlights,
+    contactName: proposal.contactName || "",
+    avgCustomerSpend: proposal.avgCustomerSpend || "Not specified",
+    customersPerDay: proposal.customersPerDay || "Not specified",
   };
 }
 
 function baseInstructions(ctx: ProposalContext): string {
-  const websiteSection = ctx.hasWebsite 
+  const websiteSection = ctx.hasWebsite
     ? `WEBSITE: ${ctx.website} | Speed ${ctx.speedScore} | Performance ${ctx.performance} | Accessibility ${ctx.accessibility} | SEO ${ctx.seo} | Best Practices ${ctx.bestPractices}`
     : `WEBSITE: NO WEBSITE - This business does not have a website. Focus on the opportunity cost and lost revenue from lack of online presence.`;
-  
+
   const googleSection = `GOOGLE: Rating ${ctx.googleRating} (${ctx.googleReviews} reviews) | Profile ${ctx.googleProfileScore}/100 | Local SEO ${ctx.localSeoScore}/100
 REVIEW SENTIMENT: ${ctx.gbpSentiment}
 REVIEW HIGHLIGHTS: ${ctx.gbpReviewHighlights}`;
@@ -124,110 +128,253 @@ GOALS: ${ctx.goals}
 Write in a confident, strategic tone. Reference specific scores and review insights. Use the business name naturally. Never use generic template language.`;
 }
 
-export function generateCoverLetter(ctx: ProposalContext): string {
+// --- Modular Prompt Functions ---
+
+function generateCoverLetterPrompt(ctx: ProposalContext): string {
   return `${baseInstructions(ctx)}
 
-Write a personalized cover letter/intro for this proposal. Open with a strong hook about their industry and situation. Reference 1-2 specific assessment findings. Position BrandAid as the strategic partner they need. Keep it to 2-3 paragraphs, warm but professional. Return ONLY the text, no JSON.`;
+Write a personalized cover letter for this proposal addressed to ${ctx.contactName || "the team"}.
+- Open with a strong hook about their ${ctx.industry} business and current situation
+- Reference 1-2 specific assessment findings (scores, reviews, gaps)
+- Position BrandAid as the strategic partner they need
+- Keep it to 2-3 paragraphs, warm but professional
+- Use "you" and "your business" naturally
+- Return ONLY the text, no JSON, no formatting`;
+
 }
 
-export function generateExecutiveSummary(ctx: ProposalContext): string {
+function generateExecutiveSummaryPrompt(ctx: ProposalContext): string {
   return `${baseInstructions(ctx)}
 
-Write a compelling 2-3 paragraph executive summary. Open with the opportunity, reference key findings from the assessment, and position our solution. Be specific to ${ctx.businessName}'s situation. Return ONLY the text.`;
+Write a compelling 2-3 paragraph executive summary for ${ctx.businessName}'s growth proposal.
+- Open with the biggest opportunity or challenge you see
+- Reference 2-3 specific data points from the assessment
+- Position the recommended services as the solution
+- End with the expected outcome
+- Be specific to their situation, not generic
+- Return ONLY the text, no JSON`;
 }
 
-export function generateRecommendations(ctx: ProposalContext): string {
+function generateBusinessSnapshotPrompt(ctx: ProposalContext): string {
+  const noWebsite = !ctx.hasWebsite ? "THIS BUSINESS HAS NO WEBSITE. Focus on what they're missing - online visibility, lead generation, competitor advantage." : "";
+
   return `${baseInstructions(ctx)}
 
-Write a "What We Recommend and Why" section. Based on the audit findings and selected services, explain:
-1. The top 3 priorities for this business
-2. Why each service matters for their specific situation
-3. Expected outcomes with timelines
-Write 3-4 paragraphs. Be decisive and specific. Return ONLY the text.`;
+Write a "Business Snapshot" section for ${ctx.businessName}. ${noWebsite}
+- Describe their current digital presence using the data provided
+- Frame as "where you are now" vs "where you could be"
+- Reference specific numbers: revenue, traffic, leads, scores
+- 2-3 paragraphs, factual but persuasive
+- Return ONLY the text`;
 }
 
-export function generateServiceExplanations(ctx: ProposalContext): string {
+function generateCriticalInformationPrompt(ctx: ProposalContext): string {
   return `${baseInstructions(ctx)}
 
-For EACH service listed above, write a contextual explanation (2-3 sentences) of why it matters for ${ctx.businessName} specifically. Reference their scores, industry, and pain points.
+Write a "Critical Information" section highlighting the most urgent gaps for ${ctx.businessName}.
+- List 3-5 critical findings from the assessment
+- Explain the business impact of each gap
+- Create urgency without being pushy
+- Reference specific scores and review data
+- 2-3 paragraphs
+- Return ONLY the text`;
+}
 
-Return a JSON object with service names as keys and explanations as values. Example:
+function generateWebsiteAnalysisPrompt(ctx: ProposalContext): string {
+  if (!ctx.hasWebsite) {
+    return `${baseInstructions(ctx)}
+
+Write a "Website Analysis" section. This business has NO WEBSITE.
+- Calculate potential lost traffic and leads from not having a site
+- Compare to competitors who do have websites
+- Emphasize the revenue gap
+- Make a compelling case for building a website first
+- 3 paragraphs
+- Return ONLY the text`;
+  }
+
+  return `${baseInstructions(ctx)}
+
+Write a detailed "Website Performance Analysis" for ${ctx.businessName}'s website.
+- Analyze each Lighthouse score: Performance ${ctx.performance}, Accessibility ${ctx.accessibility}, SEO ${ctx.seo}, Best Practices ${ctx.bestPractices}
+- Explain what each score means for their business in plain language
+- Calculate the business impact of slow/poor performance (lost visitors, lost revenue)
+- Compare to industry benchmarks
+- 3 paragraphs, data-driven
+- Return ONLY the text`;
+}
+
+function generateGoogleBusinessAnalysisPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a "Google Business Profile Analysis" for ${ctx.businessName}.
+- Rating: ${ctx.googleRating} out of 5 with ${ctx.googleReviews} reviews
+- Sentiment: ${ctx.gbpSentiment}
+- Review highlights: ${ctx.gbpReviewHighlights}
+- Profile completeness score: ${ctx.googleProfileScore}/100
+- What's working well vs what needs improvement
+- Specific recommendations to improve their GBP
+- 2-3 paragraphs
+- Return ONLY the text`;
+}
+
+function generateLocalSeoAnalysisPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a "Local SEO Analysis" for ${ctx.businessName}.
+- Current local SEO score: ${ctx.localSeoScore}/100
+- How local search works for ${ctx.industry} businesses
+- Their visibility in local search results
+- Impact on foot traffic and leads
+- 2 paragraphs
+- Return ONLY the text`;
+}
+
+function generateServicesNarrativePrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+For EACH of the selected services, write a compelling explanation of why it matters for ${ctx.businessName} specifically.
+Services: ${ctx.services}
+
+Service Details:
+${ctx.serviceDetails}
+
+For each service:
+- Name the specific problem it solves for this business
+- Reference their scores/reviews/data as evidence
+- Describe expected outcomes with timeline
+- 2-3 sentences per service
+
+Return as JSON object with service names as keys. Example:
 ${JSON.stringify(Object.fromEntries(ctx.services.split(", ").map(s => [s.trim(), "explanation here"])))}
 
 Return ONLY the JSON object.`;
 }
 
-export function generateNarratives(ctx: ProposalContext): string {
+function generateRoiNarrativePrompt(ctx: ProposalContext): string {
+  const baselineInfo = ctx.avgCustomerSpend !== "Not specified"
+    ? `Revenue baseline: NPR ${ctx.avgCustomerSpend} avg spend x ${ctx.customersPerDay} customers/day.`
+    : `Current revenue: ${ctx.revenue}.`;
+
   return `${baseInstructions(ctx)}
 
-Generate the following sections as a single JSON object:
-{
-  "aboutBrandAid": "2 paragraphs about BrandAid as a strategic growth consultancy. Focus on systems-thinking, long-term value, measurable results.",
-  "whyBrandAid": "2 paragraphs on why ${ctx.businessName} should choose BrandAid. Reference their specific industry and challenges.",
-  "ourProcess": "Describe our 4-phase process: Discovery, Strategy, Implementation, Optimization. 2 paragraphs.",
-  "businessSnapshot": "2 paragraphs about their current state using revenue, traffic, lead data. Frame as 'where you are now'.",
-  "criticalInformation": "2 paragraphs about critical gaps identified. Reference assessment scores.",
-  "websiteAnalysis": "3 paragraphs of detailed website analysis based on Lighthouse scores. Explain business impact of each score.",
-  "googleBusinessAnalysis": "2 paragraphs on Google Business Profile performance. Reference rating, reviews, completeness.",
-  "localSeoAnalysis": "2 paragraphs on local SEO performance and its business impact.",
-  "servicesNarrative": "2-3 paragraphs per service explaining the problem it solves, outcomes, and timeline.",
-  "roiNarrative": "2 paragraphs on ROI expectations. Reference current revenue and traffic. Frame as growth lever.",
-  "pricingNarrative": "1 paragraph on pricing philosophy - value-based, transparent, ROI-focused.",
-  "faq": "5-6 relevant FAQs specific to this business and industry.",
-  "nextSteps": "Clear next steps: strategy call, audit, proposal finalization, kickoff. Urgent but not pushy."
+Write an "ROI Expectations" narrative for ${ctx.businessName}.
+${baselineInfo}
+- Frame the investment as a growth lever, not a cost
+- Reference their current revenue and traffic
+- Explain how each service contributes to ROI
+- Set realistic expectations with timelines
+- 2 paragraphs
+- Return ONLY the text`;
 }
 
-Return ONLY the JSON object.`;
+function generatePricingNarrativePrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a brief "Pricing Philosophy" statement for BrandAid.
+- Emphasize value-based, transparent pricing
+- Focus on ROI and measurable results
+- Reference the specific services selected
+- 1 paragraph, confident and clear
+- Return ONLY the text`;
 }
 
-export function buildGenerationPrompt(proposal: any): string {
+function generateFaqPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write 5-6 frequently asked questions specific to ${ctx.businessName}'s situation in the ${ctx.industry} industry.
+- Questions a business owner would actually ask
+- Answers specific to their situation, not generic
+- Include questions about timeline, ROI, process, and guarantees
+- Format as Q: / A: pairs
+- Return ONLY the text`;
+}
+
+function generateNextStepsPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write clear "Next Steps" for ${ctx.businessName}.
+- 4-5 specific actionable steps
+- Include: strategy call, audit review, proposal finalization, kickoff
+- Create urgency but don't be pushy
+- Make it easy to say yes
+- Return ONLY the text`;
+}
+
+function generateRecommendationsPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write a "What We Recommend and Why" section for ${ctx.businessName}.
+- Based on their assessment findings and selected services
+- List 3-5 specific recommendations
+- For each: what, why it matters for THEM, expected outcome
+- Be decisive and specific to their situation
+- 3-4 paragraphs
+- Return ONLY the text`;
+}
+
+function generateAboutBrandAidPrompt(): string {
+  return `Write 2 paragraphs about BrandAid as a strategic growth consultancy.
+- Focus on systems-thinking, long-term value, measurable results
+- We don't just implement tactics, we build growth systems
+- Our approach: Discovery, Strategy, Implementation, Optimization
+- Tone: confident, strategic, results-focused
+- Return ONLY the text`;
+}
+
+function generateWhyBrandAidPrompt(ctx: ProposalContext): string {
+  return `${baseInstructions(ctx)}
+
+Write 2 paragraphs on why ${ctx.businessName} should choose BrandAid over competitors.
+- Reference their specific ${ctx.industry} industry challenges
+- Explain our differentiated approach
+- Focus on outcomes, not features
+- Be specific to their situation
+- Return ONLY the text`;
+}
+
+function generateOurProcessPrompt(): string {
+  return `Describe BrandAid's 4-phase process:
+1. Discovery & Audit - Deep dive into business, competitors, digital presence
+2. Strategy Design - Custom growth plan with clear KPIs
+3. Implementation - Execute with precision, weekly check-ins
+4. Optimization - Measure, iterate, scale what works
+
+Write 2 paragraphs explaining the process in a way that reassures the client.
+- Emphasize collaboration and transparency
+- Mention typical timelines
+- Return ONLY the text`;
+}
+
+// --- Main Export: Build all prompts ---
+
+export function buildAllPrompts(proposal: any): { section: string; prompt: string }[] {
   const ctx = extractContext(proposal);
 
-  const websiteAnalysisPrompt = ctx.hasWebsite 
-    ? `"websiteAnalysis": "3 paragraphs of website analysis based on Lighthouse scores. Explain business impact of each score.",`
-    : `"websiteAnalysis": "3 paragraphs about the missed opportunity and revenue gap from not having a website. Calculate potential lost traffic and leads. Emphasize urgency of building an online presence.",`;
-  
-  const websiteSnapshot = ctx.hasWebsite
-    ? `"businessSnapshot": "2 paragraphs about current business snapshot using revenue, traffic, lead data. Frame as 'where you are now'."`
-    : `"businessSnapshot": "2 paragraphs about current business snapshot. Since there's no website, focus on what they're missing - lost online traffic, competitor advantage, and the revenue gap from lack of digital presence. Frame as 'where you could be'."`;
+  return [
+    { section: "coverLetter", prompt: generateCoverLetterPrompt(ctx) },
+    { section: "executiveSummary", prompt: generateExecutiveSummaryPrompt(ctx) },
+    { section: "businessSnapshot", prompt: generateBusinessSnapshotPrompt(ctx) },
+    { section: "criticalInformation", prompt: generateCriticalInformationPrompt(ctx) },
+    { section: "websiteAnalysis", prompt: generateWebsiteAnalysisPrompt(ctx) },
+    { section: "googleBusinessAnalysis", prompt: generateGoogleBusinessAnalysisPrompt(ctx) },
+    { section: "localSeoAnalysis", prompt: generateLocalSeoAnalysisPrompt(ctx) },
+    { section: "servicesNarrative", prompt: generateServicesNarrativePrompt(ctx) },
+    { section: "roiNarrative", prompt: generateRoiNarrativePrompt(ctx) },
+    { section: "pricingNarrative", prompt: generatePricingNarrativePrompt(ctx) },
+    { section: "faq", prompt: generateFaqPrompt(ctx) },
+    { section: "nextSteps", prompt: generateNextStepsPrompt(ctx) },
+    { section: "recommendations", prompt: generateRecommendationsPrompt(ctx) },
+    { section: "aboutBrandAid", prompt: generateAboutBrandAidPrompt() },
+    { section: "whyBrandAid", prompt: generateWhyBrandAidPrompt(ctx) },
+    { section: "ourProcess", prompt: generateOurProcessPrompt() },
+  ];
+}
 
-  return `You are BrandAid's expert proposal copywriter. Write a comprehensive, persuasive growth proposal for ${ctx.businessName}.
-
-${baseInstructions(ctx)}
-
-Generate ALL sections below as a single JSON object. Each section should be 2-4 paragraphs of polished, strategic copy.
-IMPORTANT: ${ctx.hasWebsite ? "Reference actual Lighthouse scores and website performance data." : "This business has NO WEBSITE. Focus on the opportunity cost, lost revenue, and urgency of building an online presence. Do NOT reference website performance scores."}
-
-${JSON.stringify({
-  discoveryNotes: "Professional discovery summary based on business info. Include current state, market position, digital presence.",
-  painPoints: ctx.hasWebsite 
-    ? "3-5 specific pain points based on industry, scores, and current setup. Reference assessment data."
-    : "3-5 specific pain points focused on: no online presence, missed revenue opportunities, competitor advantage in search, zero lead generation from digital channels, and brand credibility gap.",
-  goals: ctx.hasWebsite 
-    ? "3-5 strategic goals tied to measurable outcomes like revenue growth, lead generation, conversion improvement."
-    : "3-5 strategic goals focused on: establishing online presence, capturing search traffic, generating leads, building credibility, and closing the gap with competitors.",
-  executiveSummary: "Compelling 2-3 paragraph executive summary opening with the opportunity.",
-  aboutBrandAid: "2 paragraphs about BrandAid as strategic growth consultancy.",
-  whyBrandAid: "2 paragraphs on why they should choose BrandAid over competitors.",
-  ourProcess: "4-phase process description.",
-  businessSnapshot: websiteSnapshot,
-  criticalInformation: "2 paragraphs about critical gaps identified. Reference assessment scores and review insights.",
-  websiteAnalysis: websiteAnalysisPrompt,
-  googleBusinessAnalysis: `2 paragraphs on Google Business Profile performance. Reference rating, reviews, completeness. Include review sentiment: ${ctx.gbpSentiment}. Reference specific review themes: ${ctx.gbpReviewHighlights}.`,
-  localSeoAnalysis: "2 paragraphs on local SEO performance and its business impact.",
-  servicesNarrative: "2-3 paragraphs per service explaining the problem it solves, outcomes, and timeline.",
-  roiNarrative: ctx.hasWebsite 
-    ? "2 paragraphs on ROI expectations. Reference current revenue and traffic. Frame as growth lever."
-    : "2 paragraphs on ROI expectations. Since there's no website, calculate potential lost revenue from missed online traffic. Show how a website could transform their business.",
-  pricingNarrative: "1 paragraph on pricing philosophy - value-based, transparent, ROI-focused.",
-  faq: "5-6 relevant FAQs specific to this business and industry.",
-  nextSteps: "Clear next steps: strategy call, audit, proposal finalization, kickoff. Urgent but not pushy.",
-  coverLetter: "Personalized opening letter for this proposal.",
-  recommendations: "What We Recommend and Why section.",
-  serviceExplanations: "Contextual explanation per selected service."
-}, null, 2)}
-
-IMPORTANT: Reference actual scores and review insights, use business name naturally, be strategic not salesy, return ONLY the JSON.`;
+// Keep backward compatibility
+export function buildGenerationPrompt(proposal: any): string {
+  const prompts = buildAllPrompts(proposal);
+  return prompts.map(p => `--- ${p.section} ---\n${p.prompt}`).join("\n\n");
 }
 
 export function parseGeneratedContent(content: string): GeneratedContent {
