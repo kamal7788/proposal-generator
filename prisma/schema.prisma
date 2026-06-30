@@ -73,6 +73,7 @@ model Proposal {
   contactPhone          String?
   address               String?
   websiteUrl            String?
+  hasWebsite            Boolean   @default(true)
   googleMapsLink        String?
   googleBusinessProfile String?
   industry              String?

@@ -128,6 +128,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
               placeholder="Package description"
             />
             <div className="flex items-end gap-1">
+              <span className="text-[14px] font-medium text-[#004527] pb-1">NPR</span>
               <input
                 type="number"
                 value={pkg.price || ""}
@@ -167,6 +168,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
                   className="flex-1 text-[13px] font-medium bg-transparent border-none outline-none"
                   placeholder="Add-on name"
                 />
+                <span className="text-[12px] text-on-surface-variant">NPR</span>
                 <input
                   type="number"
                   value={addon.price || ""}

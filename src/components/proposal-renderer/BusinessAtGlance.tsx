@@ -10,6 +10,7 @@ interface BusinessAtGlanceProps {
     contactEmail?: string | null;
     contactPhone?: string | null;
     websiteUrl?: string | null;
+    hasWebsite?: boolean | null;
     address?: string | null;
     city?: string | null;
     state?: string | null;
@@ -54,17 +55,28 @@ function getScoreBadge(score: number) {
 }
 
 export default function BusinessAtGlance({ proposal }: BusinessAtGlanceProps) {
-  const overallScore = proposal.performanceScore || 0;
-  const sections = [
-    { label: 'Overall Score', score: overallScore },
-    { label: 'Business Details', score: proposal.contactName ? 100 : 0 },
-    { label: 'Techno Stack', score: proposal.websiteUrl ? 50 : 0 },
-    { label: 'Google Business Profile', score: proposal.gbpOverallScore || 0 },
-    { label: 'Listings', score: proposal.address ? 50 : 0 },
-    { label: 'Reputation', score: proposal.gbpRating ? Math.round((proposal.gbpRating / 5) * 100) : 0 },
-    { label: 'Website Performance', score: proposal.performanceScore || 0 },
-    { label: 'SEO Analysis', score: proposal.seoScore || 0 },
-  ];
+  const hasWebsite = proposal.hasWebsite !== false;
+  const overallScore = hasWebsite ? (proposal.performanceScore || 0) : (proposal.gbpOverallScore || 0);
+  
+  const sections = hasWebsite 
+    ? [
+        { label: 'Overall Score', score: overallScore },
+        { label: 'Business Details', score: proposal.contactName ? 100 : 0 },
+        { label: 'Techno Stack', score: proposal.websiteUrl ? 50 : 0 },
+        { label: 'Google Business Profile', score: proposal.gbpOverallScore || 0 },
+        { label: 'Listings', score: proposal.address ? 50 : 0 },
+        { label: 'Reputation', score: proposal.gbpRating ? Math.round((proposal.gbpRating / 5) * 100) : 0 },
+        { label: 'Website Performance', score: proposal.performanceScore || 0 },
+        { label: 'SEO Analysis', score: proposal.seoScore || 0 },
+      ]
+    : [
+        { label: 'Overall Score', score: overallScore },
+        { label: 'Business Details', score: proposal.contactName ? 100 : 0 },
+        { label: 'Google Business Profile', score: proposal.gbpOverallScore || 0 },
+        { label: 'Listings', score: proposal.address ? 50 : 0 },
+        { label: 'Reputation', score: proposal.gbpRating ? Math.round((proposal.gbpRating / 5) * 100) : 0 },
+        { label: 'Online Visibility', score: 0 },
+      ];
 
   return (
     <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -79,6 +91,36 @@ export default function BusinessAtGlance({ proposal }: BusinessAtGlanceProps) {
           {getScoreBadge(overallScore)}
         </div>
       </div>
+
+      {!hasWebsite && (
+        <div className="mx-8 mt-6 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-[20px] text-orange-600 mt-0.5">warning</span>
+            <div>
+              <h3 className="text-[14px] font-bold text-orange-800">No Website Detected</h3>
+              <p className="text-[12px] text-orange-700 mt-1">
+                This business doesn't have a website yet. This represents a significant missed opportunity 
+                for capturing online traffic and converting visitors into customers. Our proposal will focus 
+                on building a strong digital presence from the ground up.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                  <span className="material-symbols-outlined text-[12px]">trending_down</span>
+                  Lost Revenue
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                  <span className="material-symbols-outlined text-[12px]">visibility_off</span>
+                  Zero Online Visibility
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                  <span className="material-symbols-outlined text-[12px]">people</span>
+                  Competitor Advantage
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,9 +155,10 @@ export default function BusinessAtGlance({ proposal }: BusinessAtGlanceProps) {
             </span>
           </div>
           <p className="text-xs text-gray-500 leading-relaxed">
-            The Overall Score is a weighted average of all individual scores across Website Performance,
-            Google Business Profile, Reputation, Listings, and SEO Analysis. Each category contributes
-            proportionally to give you a single score representing your online presence health.
+            {hasWebsite 
+              ? "The Overall Score is a weighted average of all individual scores across Website Performance, Google Business Profile, Reputation, Listings, and SEO Analysis. Each category contributes proportionally to give you a single score representing your online presence health."
+              : "The Overall Score is based on Google Business Profile data, local listings, and reputation metrics. Since there's no website, website performance and SEO scores are not applicable. The score focuses on the business's local search presence and customer reviews."
+            }
           </p>
         </div>
       </div>

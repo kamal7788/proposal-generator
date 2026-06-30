@@ -154,7 +154,7 @@ export default function ServiceManager({ services: initialServices }: { services
             label="Pricing Packages (JSON)"
             defaultValue={editing?.pricingPackages ? JSON.stringify(editing.pricingPackages, null, 2) : ""}
             rows={4}
-            placeholder='[{"name": "Starter", "price": "$2,500", "features": ["Feature 1"]}, {"name": "Premium", "price": "$5,000", "features": ["Feature 1", "Feature 2"]}]'
+            placeholder='[{"name": "Starter", "price": 2500, "features": ["Feature 1"]}, {"name": "Premium", "price": 5000, "features": ["Feature 1", "Feature 2"]}]'
           />
           <div>
             <label className="block text-[13px] font-medium text-on-surface mb-1.5">Service Image</label>

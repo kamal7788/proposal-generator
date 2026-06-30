@@ -92,6 +92,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [placesResults, setPlacesResults] = useState<any[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
   const [localSeoGrid, setLocalSeoGrid] = useState<any[]>(initialData?.localSeoGrid || []);
+  const [hasWebsite, setHasWebsite] = useState(initialData?.hasWebsite !== false);
 
   // Auto-fetch assessment data when navigating to Assessment tab
   const autoFetchAssessment = useCallback(async () => {
@@ -99,7 +100,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setAssessmentFetched(true);
 
     // Auto-fetch PageSpeed if website URL is set and scores are empty
-    if (form.websiteUrl && !form.lighthousePerformance) {
+    if (hasWebsite && form.websiteUrl && !form.lighthousePerformance) {
       setFetchingScores(true);
       try {
         const res = await fetch("/api/page-speed", {
@@ -241,7 +242,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const data = { ...form, serviceIds: selectedServices, sectionIds: selectedSections, localSeoGrid, googleBusinessData: selectedPlace };
+    const data = { ...form, serviceIds: selectedServices, sectionIds: selectedSections, localSeoGrid, googleBusinessData: selectedPlace, hasWebsite };
     await onSubmit(data);
   }
 
@@ -303,11 +304,46 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Online Presence</h3>
             </div>
             <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-[#c3cdd8]/50">
+                <button
+                  type="button"
+                  onClick={() => setHasWebsite(!hasWebsite)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${hasWebsite ? "bg-[#004527]" : "bg-gray-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${hasWebsite ? "translate-x-5" : ""}`} />
+                </button>
+                <div>
+                  <p className="text-[13px] font-medium text-on-surface">Client has a website</p>
+                  <p className="text-[11px] text-on-surface-variant">Toggle off if the business doesn't have a website yet</p>
+                </div>
+              </div>
+              {hasWebsite ? (
+                <Input name="websiteUrl" label="Website URL" value={form.websiteUrl} onChange={e => updateField("websiteUrl", e.target.value)} placeholder="https://" icon="language" />
+              ) : (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-orange-600 mt-0.5">info</span>
+                    <div>
+                      <p className="text-[13px] font-medium text-orange-800">No Website Detected</p>
+                      <p className="text-[12px] text-orange-700 mt-1">The proposal will focus on missed opportunities and the revenue gap from not having an online presence. Website performance scores will be skipped.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <Input name="googleBusinessProfile" label="Google Business Profile Link" value={form.googleBusinessProfile} onChange={e => updateField("googleBusinessProfile", e.target.value)} icon="business_center" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Input name="currentLeadVolume" label="Current Lead Volume" value={form.currentLeadVolume} onChange={e => updateField("currentLeadVolume", e.target.value)} placeholder="e.g. 50/month" icon="trending_up" />
-                <Input name="currentMonthlyTraffic" label="Monthly Website Traffic" value={form.currentMonthlyTraffic} onChange={e => updateField("currentMonthlyTraffic", e.target.value)} placeholder="e.g. 2000" icon="bar_chart" />
-                <Input name="approximateRevenue" label="Approximate Revenue" value={form.approximateRevenue} onChange={e => updateField("approximateRevenue", e.target.value)} placeholder="e.g. $500K" icon="payments" />
+                <Input 
+                  name="currentMonthlyTraffic" 
+                  label="Monthly Website Traffic" 
+                  value={form.currentMonthlyTraffic} 
+                  onChange={e => updateField("currentMonthlyTraffic", e.target.value)} 
+                  placeholder={hasWebsite ? "e.g. 2000" : "No website - not applicable"} 
+                  icon="bar_chart"
+                  disabled={!hasWebsite}
+                  className={!hasWebsite ? "opacity-50 cursor-not-allowed" : ""}
+                />
+                <Input name="approximateRevenue" label="Approximate Revenue" value={form.approximateRevenue} onChange={e => updateField("approximateRevenue", e.target.value)} placeholder="e.g. NPR 500,000/mo" icon="payments" />
               </div>
               <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
             </div>
@@ -372,40 +408,47 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <span className="material-symbols-outlined text-[18px] text-[#004527]">speed</span>
                 <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Website Speed & Lighthouse Scores</h3>
               </div>
-              {fetchingScores ? (
-                <span className="text-[12px] text-[#004527] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-                  Fetching...
-                </span>
-              ) : form.lighthousePerformance ? (
-                <span className="text-[12px] text-[#15803d] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                  Auto-fetched
-                </span>
+              {hasWebsite ? (
+                fetchingScores ? (
+                  <span className="text-[12px] text-[#004527] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                    Fetching...
+                  </span>
+                ) : form.lighthousePerformance ? (
+                  <span className="text-[12px] text-[#15803d] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                    Auto-fetched
+                  </span>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" onClick={fetchPageSpeed}>Fetch Now</Button>
+                )
               ) : (
-                <Button type="button" variant="outline" size="sm" onClick={fetchPageSpeed}>Fetch Now</Button>
+                <span className="text-[12px] text-on-surface-variant flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">info</span>
+                  Skipped - No website
+                </span>
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Speed Score</label>
-                <input type="number" name="websiteSpeedScore" min="0" max="100" value={form.websiteSpeedScore} onChange={e => updateField("websiteSpeedScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="websiteSpeedScore" min="0" max="100" value={form.websiteSpeedScore} onChange={e => updateField("websiteSpeedScore", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Performance</label>
-                <input type="number" name="lighthousePerformance" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthousePerformance" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Accessibility</label>
-                <input type="number" name="lighthouseAccessibility" min="0" max="100" value={form.lighthouseAccessibility} onChange={e => updateField("lighthouseAccessibility", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseAccessibility" min="0" max="100" value={form.lighthouseAccessibility} onChange={e => updateField("lighthouseAccessibility", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">SEO</label>
-                <input type="number" name="lighthouseSeo" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseSeo" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Best Practices</label>
-                <input type="number" name="lighthouseBestPractices" min="0" max="100" value={form.lighthouseBestPractices} onChange={e => updateField("lighthouseBestPractices", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" name="lighthouseBestPractices" min="0" max="100" value={form.lighthouseBestPractices} onChange={e => updateField("lighthouseBestPractices", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
             </div>
           </div>

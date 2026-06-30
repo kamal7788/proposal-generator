@@ -25,6 +25,7 @@ interface ProposalContext {
   businessName: string;
   industry: string;
   website: string;
+  hasWebsite: boolean;
   address: string;
   revenue: string;
   traffic: string;
@@ -44,13 +45,37 @@ interface ProposalContext {
   serviceDetails: string;
   painPoints: string;
   goals: string;
+  gbpReviews: string;
+  gbpSentiment: string;
+  gbpReviewHighlights: string;
 }
 
 function extractContext(proposal: any): ProposalContext {
+  const gbpData = proposal.googleBusinessData || {};
+  const reviews = gbpData.reviews || [];
+  
+  // Extract review text and sentiment
+  const reviewTexts = reviews.slice(0, 5).map((r: any) => `"${r.text || "No text"}" (${r.rating || "N/A"} stars)`).join("\n");
+  const positiveReviews = reviews.filter((r: any) => (r.rating || 0) >= 4).length;
+  const negativeReviews = reviews.filter((r: any) => (r.rating || 0) <= 2).length;
+  const totalReviews = reviews.length || 0;
+  
+  let sentiment = "Neutral";
+  if (positiveReviews > negativeReviews * 2) sentiment = "Mostly Positive";
+  else if (negativeReviews > positiveReviews * 2) sentiment = "Mostly Negative";
+  else if (totalReviews > 0) sentiment = "Mixed";
+  
+  // Extract key themes from reviews
+  const reviewHighlights = reviews.slice(0, 3).map((r: any) => {
+    const text = r.text || "";
+    return text.length > 100 ? text.slice(0, 100) + "..." : text;
+  }).filter(Boolean).join("; ") || "No review highlights available";
+
   return {
     businessName: proposal.businessName,
     industry: proposal.industry || "Not specified",
     website: proposal.websiteUrl || "Not provided",
+    hasWebsite: proposal.hasWebsite !== false,
     address: proposal.address || "Not provided",
     revenue: proposal.approximateRevenue || "Not specified",
     traffic: proposal.currentMonthlyTraffic || "Not specified",
@@ -62,8 +87,8 @@ function extractContext(proposal: any): ProposalContext {
     accessibility: proposal.lighthouseAccessibility || "Not assessed",
     seo: proposal.lighthouseSeo || "Not assessed",
     bestPractices: proposal.lighthouseBestPractices || "Not assessed",
-    googleRating: proposal.googleBusinessData?.rating || "Not assessed",
-    googleReviews: proposal.googleBusinessData?.reviewCount || "Not assessed",
+    googleRating: gbpData.rating || "Not assessed",
+    googleReviews: gbpData.reviewCount || "Not assessed",
     googleProfileScore: proposal.googleProfileScore || "Not assessed",
     localSeoScore: proposal.localSeoScore || "Not assessed",
     services: proposal.services?.map((s: any) => s.service.name).join(", ") || "None selected",
@@ -73,19 +98,30 @@ function extractContext(proposal: any): ProposalContext {
     }).join("\n") || "None",
     painPoints: proposal.painPoints || "Not specified",
     goals: proposal.goals || "Not specified",
+    gbpReviews: reviewTexts,
+    gbpSentiment: sentiment,
+    gbpReviewHighlights: reviewHighlights,
   };
 }
 
 function baseInstructions(ctx: ProposalContext): string {
-  return `BUSINESS: ${ctx.businessName} | Industry: ${ctx.industry} | Website: ${ctx.website} | Address: ${ctx.address}
+  const websiteSection = ctx.hasWebsite 
+    ? `WEBSITE: ${ctx.website} | Speed ${ctx.speedScore} | Performance ${ctx.performance} | Accessibility ${ctx.accessibility} | SEO ${ctx.seo} | Best Practices ${ctx.bestPractices}`
+    : `WEBSITE: NO WEBSITE - This business does not have a website. Focus on the opportunity cost and lost revenue from lack of online presence.`;
+  
+  const googleSection = `GOOGLE: Rating ${ctx.googleRating} (${ctx.googleReviews} reviews) | Profile ${ctx.googleProfileScore}/100 | Local SEO ${ctx.localSeoScore}/100
+REVIEW SENTIMENT: ${ctx.gbpSentiment}
+REVIEW HIGHLIGHTS: ${ctx.gbpReviewHighlights}`;
+
+  return `BUSINESS: ${ctx.businessName} | Industry: ${ctx.industry} | Address: ${ctx.address}
 REVENUE: ${ctx.revenue} | Traffic: ${ctx.traffic}/mo | Leads: ${ctx.leads}/mo | CRM: ${ctx.crm}
-SCORES: Speed ${ctx.speedScore} | Performance ${ctx.performance} | Accessibility ${ctx.accessibility} | SEO ${ctx.seo} | Best Practices ${ctx.bestPractices}
-GOOGLE: Rating ${ctx.googleRating} (${ctx.googleReviews} reviews) | Profile ${ctx.googleProfileScore}/100 | Local SEO ${ctx.localSeoScore}/100
+${websiteSection}
+${googleSection}
 SERVICES: ${ctx.services}
 PAIN POINTS: ${ctx.painPoints}
 GOALS: ${ctx.goals}
 
-Write in a confident, strategic tone. Reference specific scores. Use the business name naturally. Never use generic template language.`;
+Write in a confident, strategic tone. Reference specific scores and review insights. Use the business name naturally. Never use generic template language.`;
 }
 
 export function generateCoverLetter(ctx: ProposalContext): string {
@@ -147,35 +183,51 @@ Return ONLY the JSON object.`;
 export function buildGenerationPrompt(proposal: any): string {
   const ctx = extractContext(proposal);
 
+  const websiteAnalysisPrompt = ctx.hasWebsite 
+    ? `"websiteAnalysis": "3 paragraphs of website analysis based on Lighthouse scores. Explain business impact of each score.",`
+    : `"websiteAnalysis": "3 paragraphs about the missed opportunity and revenue gap from not having a website. Calculate potential lost traffic and leads. Emphasize urgency of building an online presence.",`;
+  
+  const websiteSnapshot = ctx.hasWebsite
+    ? `"businessSnapshot": "2 paragraphs about current business snapshot using revenue, traffic, lead data. Frame as 'where you are now'."`
+    : `"businessSnapshot": "2 paragraphs about current business snapshot. Since there's no website, focus on what they're missing - lost online traffic, competitor advantage, and the revenue gap from lack of digital presence. Frame as 'where you could be'."`;
+
   return `You are BrandAid's expert proposal copywriter. Write a comprehensive, persuasive growth proposal for ${ctx.businessName}.
 
 ${baseInstructions(ctx)}
 
 Generate ALL sections below as a single JSON object. Each section should be 2-4 paragraphs of polished, strategic copy.
+IMPORTANT: ${ctx.hasWebsite ? "Reference actual Lighthouse scores and website performance data." : "This business has NO WEBSITE. Focus on the opportunity cost, lost revenue, and urgency of building an online presence. Do NOT reference website performance scores."}
+
 ${JSON.stringify({
   discoveryNotes: "Professional discovery summary based on business info. Include current state, market position, digital presence.",
-  painPoints: "3-5 specific pain points based on industry, scores, and current setup. Reference assessment data.",
-  goals: "3-5 strategic goals tied to measurable outcomes like revenue growth, lead generation, conversion improvement.",
+  painPoints: ctx.hasWebsite 
+    ? "3-5 specific pain points based on industry, scores, and current setup. Reference assessment data."
+    : "3-5 specific pain points focused on: no online presence, missed revenue opportunities, competitor advantage in search, zero lead generation from digital channels, and brand credibility gap.",
+  goals: ctx.hasWebsite 
+    ? "3-5 strategic goals tied to measurable outcomes like revenue growth, lead generation, conversion improvement."
+    : "3-5 strategic goals focused on: establishing online presence, capturing search traffic, generating leads, building credibility, and closing the gap with competitors.",
   executiveSummary: "Compelling 2-3 paragraph executive summary opening with the opportunity.",
   aboutBrandAid: "2 paragraphs about BrandAid as strategic growth consultancy.",
   whyBrandAid: "2 paragraphs on why they should choose BrandAid over competitors.",
   ourProcess: "4-phase process description.",
-  businessSnapshot: "2 paragraphs about current business snapshot.",
-  criticalInformation: "2 paragraphs about critical gaps identified.",
-  websiteAnalysis: "3 paragraphs of website analysis based on Lighthouse scores.",
-  googleBusinessAnalysis: "2 paragraphs on Google Business Profile performance.",
-  localSeoAnalysis: "2 paragraphs on local SEO performance.",
-  servicesNarrative: "2-3 paragraphs per service explaining value.",
-  roiNarrative: "2 paragraphs on ROI expectations.",
-  pricingNarrative: "1 paragraph on pricing philosophy.",
-  faq: "5-6 relevant FAQs.",
-  nextSteps: "Clear next steps with urgency.",
+  businessSnapshot: websiteSnapshot,
+  criticalInformation: "2 paragraphs about critical gaps identified. Reference assessment scores and review insights.",
+  websiteAnalysis: websiteAnalysisPrompt,
+  googleBusinessAnalysis: `2 paragraphs on Google Business Profile performance. Reference rating, reviews, completeness. Include review sentiment: ${ctx.gbpSentiment}. Reference specific review themes: ${ctx.gbpReviewHighlights}.`,
+  localSeoAnalysis: "2 paragraphs on local SEO performance and its business impact.",
+  servicesNarrative: "2-3 paragraphs per service explaining the problem it solves, outcomes, and timeline.",
+  roiNarrative: ctx.hasWebsite 
+    ? "2 paragraphs on ROI expectations. Reference current revenue and traffic. Frame as growth lever."
+    : "2 paragraphs on ROI expectations. Since there's no website, calculate potential lost revenue from missed online traffic. Show how a website could transform their business.",
+  pricingNarrative: "1 paragraph on pricing philosophy - value-based, transparent, ROI-focused.",
+  faq: "5-6 relevant FAQs specific to this business and industry.",
+  nextSteps: "Clear next steps: strategy call, audit, proposal finalization, kickoff. Urgent but not pushy.",
   coverLetter: "Personalized opening letter for this proposal.",
   recommendations: "What We Recommend and Why section.",
   serviceExplanations: "Contextual explanation per selected service."
 }, null, 2)}
 
-IMPORTANT: Reference actual scores, use business name naturally, be strategic not salesy, return ONLY the JSON.`;
+IMPORTANT: Reference actual scores and review insights, use business name naturally, be strategic not salesy, return ONLY the JSON.`;
 }
 
 export function parseGeneratedContent(content: string): GeneratedContent {
