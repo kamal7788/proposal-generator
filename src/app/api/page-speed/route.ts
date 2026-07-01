@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isValidPublicUrl, checkRateLimit } from "@/lib/utils";
 
+async function fetchWithTimeout(url: string, timeoutMs = 30000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -21,41 +32,49 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || "";
     const keyParam = apiKey ? `&key=${apiKey}` : "";
+    const categories = "category=performance&category=accessibility&category=seo&category=best-practices";
 
-    const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=mobile${keyParam}`;
-    const res = await fetch(psiUrl);
-    const data = await res.json();
+    // Fetch mobile and desktop in parallel
+    const mobileUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&${categories}&strategy=mobile${keyParam}`;
+    const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&${categories}&strategy=desktop${keyParam}`;
 
-    if (data.error) {
-      console.error("PageSpeed API error:", JSON.stringify(data.error));
-      if (data.error.code === 429) {
-        return NextResponse.json({ error: "PageSpeed API quota exceeded. Please try again later or configure GOOGLE_PAGESPEED_API_KEY." }, { status: 429 });
+    const [mobileRes, desktopRes] = await Promise.allSettled([
+      fetchWithTimeout(mobileUrl, 45000),
+      fetchWithTimeout(desktopUrl, 45000),
+    ]);
+
+    // Process mobile results
+    let scores = { performance: 0, accessibility: 0, seo: 0, bestPractices: 0 };
+    let metrics: any = {};
+    if (mobileRes.status === "fulfilled") {
+      const mobileData = await mobileRes.value.json();
+      if (mobileData.error) {
+        if (mobileData.error.code === 429) {
+          return NextResponse.json({ error: "PageSpeed API quota exceeded. Please try again later or configure GOOGLE_PAGESPEED_API_KEY." }, { status: 429 });
+        }
+        return NextResponse.json({ error: "PageSpeed API error: " + (mobileData.error.message || "Unknown") }, { status: 500 });
       }
-      return NextResponse.json({ error: "PageSpeed API error" }, { status: 500 });
+      const lighthouse = mobileData.lighthouseResult;
+      const cats = lighthouse?.categories || {};
+      scores = {
+        performance: Math.round((cats.performance?.score || 0) * 100),
+        accessibility: Math.round((cats.accessibility?.score || 0) * 100),
+        seo: Math.round((cats.seo?.score || 0) * 100),
+        bestPractices: Math.round((cats["best-practices"]?.score || 0) * 100),
+      };
+      metrics = {
+        speedIndex: lighthouse?.audits?.["speed-index"]?.displayValue || null,
+        firstContentfulPaint: lighthouse?.audits?.["first-contentful-paint"]?.displayValue || null,
+        totalBlockingTime: lighthouse?.audits?.["total-blocking-time"]?.displayValue || null,
+        cumulativeLayoutShift: lighthouse?.audits?.["cumulative-layout-shift"]?.displayValue || null,
+        largestContentfulPaint: lighthouse?.audits?.["largest-contentful-paint"]?.displayValue || null,
+      };
     }
 
-    const lighthouse = data.lighthouseResult;
-    const categories = lighthouse?.categories || {};
-
-    const scores = {
-      performance: Math.round((categories.performance?.score || 0) * 100),
-      accessibility: Math.round((categories.accessibility?.score || 0) * 100),
-      seo: Math.round((categories.seo?.score || 0) * 100),
-      bestPractices: Math.round((categories["best-practices"]?.score || 0) * 100),
-    };
-
-    const speedIndex = lighthouse?.audits?.["speed-index"];
-    const fcp = lighthouse?.audits?.["first-contentful-paint"];
-    const tbt = lighthouse?.audits?.["total-blocking-time"];
-    const cls = lighthouse?.audits?.["cumulative-layout-shift"];
-    const lcp = lighthouse?.audits?.["largest-contentful-paint"];
-
-    // Fetch desktop scores
+    // Process desktop results
     let desktopScores = null;
-    try {
-      const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=desktop${keyParam}`;
-      const desktopRes = await fetch(desktopUrl);
-      const desktopData = await desktopRes.json();
+    if (desktopRes.status === "fulfilled") {
+      const desktopData = await desktopRes.value.json();
       if (!desktopData.error) {
         const dc = desktopData.lighthouseResult?.categories || {};
         desktopScores = {
@@ -65,21 +84,18 @@ export async function POST(req: NextRequest) {
           bestPractices: Math.round((dc["best-practices"]?.score || 0) * 100),
         };
       }
-    } catch {}
+    }
 
     return NextResponse.json({
       scores,
       desktopScores,
-      metrics: {
-        speedIndex: speedIndex?.displayValue || null,
-        firstContentfulPaint: fcp?.displayValue || null,
-        totalBlockingTime: tbt?.displayValue || null,
-        cumulativeLayoutShift: cls?.displayValue || null,
-        largestContentfulPaint: lcp?.displayValue || null,
-      },
-      finalUrl: lighthouse?.finalUrl || url,
+      metrics,
+      finalUrl: url,
     });
-  } catch {
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      return NextResponse.json({ error: "PageSpeed analysis timed out. Please try again." }, { status: 504 });
+    }
     return NextResponse.json({ error: "Failed to run PageSpeed analysis" }, { status: 500 });
   }
 }

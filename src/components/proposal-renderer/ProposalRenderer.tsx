@@ -241,16 +241,20 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
                         <span className="text-[12px] text-on-surface-variant">/{pkg.billingPeriod}</span>
                       )}
                     </div>
-                    {pkg.features?.length > 0 && (
-                      <ul className="space-y-2">
-                        {pkg.features.map((feature: string, fi: number) => (
-                          <li key={fi} className="flex items-start gap-2 text-[12px]">
-                            <span className="material-symbols-outlined text-[14px] text-[#004527] mt-0.5">check</span>
-                            <span className="text-on-surface-variant">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    {(() => {
+                      const features = Array.isArray(pkg.features) ? pkg.features : Array.isArray(pkg.includedServiceIds) ? pkg.includedServiceIds : [];
+                      if (features.length === 0) return null;
+                      return (
+                        <ul className="space-y-2">
+                          {features.map((feature: string, fi: number) => (
+                            <li key={fi} className="flex items-start gap-2 text-[12px]">
+                              <span className="material-symbols-outlined text-[14px] text-[#004527] mt-0.5">check</span>
+                              <span className="text-on-surface-variant">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

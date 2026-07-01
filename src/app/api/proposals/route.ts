@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
       currentLeadVolume: body.currentLeadVolume,
       currentMonthlyTraffic: body.currentMonthlyTraffic,
       approximateRevenue: body.approximateRevenue,
+      avgCustomerSpend: body.avgCustomerSpend ? Number(body.avgCustomerSpend) : null,
+      customersPerDay: body.customersPerDay ? Number(body.customersPerDay) : null,
+      workingDaysPerMonth: body.workingDaysPerMonth ? Number(body.workingDaysPerMonth) : 26,
       existingCrm: body.existingCrm,
       competitors: body.competitors,
       currency: body.currency || "NPR",
@@ -88,14 +91,13 @@ export async function POST(request: NextRequest) {
   // Create proposal-service links
   if (body.serviceIds && body.serviceIds.length > 0) {
     for (const serviceId of body.serviceIds) {
-      const pricingData = body[`pricing_${serviceId}`];
-      let packageData = {};
-      if (pricingData) {
-        try { packageData = JSON.parse(pricingData); } catch {}
+      const pricing = body.servicePricing?.[serviceId];
+      const data: any = { proposalId: proposal.id, serviceId };
+      if (pricing) {
+        if (pricing.name) data.packageName = pricing.name;
+        if (pricing.price) data.packagePrice = Number(String(pricing.price).replace(/[^0-9.]/g, "")) || 0;
       }
-      await db.proposalService.create({
-        data: { proposalId: proposal.id, serviceId, ...packageData },
-      });
+      await db.proposalService.create({ data });
     }
   }
 

@@ -56,26 +56,53 @@ function getScoreBadge(score: number) {
 
 export default function BusinessAtGlance({ proposal }: BusinessAtGlanceProps) {
   const hasWebsite = proposal.hasWebsite !== false;
-  const overallScore = hasWebsite ? (proposal.performanceScore || 0) : (proposal.gbpOverallScore || 0);
+  
+  // Use correct field names from the database schema
+  const lighthousePerf = (proposal as any).lighthousePerformance || 0;
+  const lighthouseAccess = (proposal as any).lighthouseAccessibility || 0;
+  const lighthouseSeo = (proposal as any).lighthouseSeo || 0;
+  const lighthouseBP = (proposal as any).lighthouseBestPractices || 0;
+  const googleProfileScore = (proposal as any).googleProfileScore || 0;
+  const localSeoScore = (proposal as any).localSeoScore || 0;
+  const gbpData = (proposal as any).googleBusinessData;
+  const gbpRating = gbpData?.rating || 0;
+  const gbpReviewCount = gbpData?.reviewCount || 0;
+
+  const websitePerfScore = hasWebsite && (lighthousePerf || lighthouseAccess || lighthouseSeo || lighthouseBP)
+    ? Math.round((lighthousePerf + lighthouseAccess + lighthouseSeo + lighthouseBP) / 4)
+    : 0;
+
+  const reputationScore = gbpRating ? Math.round((gbpRating / 5) * 100) : 0;
+  const listingScore = (proposal as any).address ? 70 : 0;
+  
+  // Overall score: weighted average of available categories
+  const scores = [
+    websitePerfScore,
+    googleProfileScore,
+    localSeoScore,
+    reputationScore,
+    listingScore,
+  ].filter(s => s > 0);
+  const overallScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   
   const sections = hasWebsite 
     ? [
         { label: 'Overall Score', score: overallScore },
-        { label: 'Business Details', score: proposal.contactName ? 100 : 0 },
-        { label: 'Techno Stack', score: proposal.websiteUrl ? 50 : 0 },
-        { label: 'Google Business Profile', score: proposal.gbpOverallScore || 0 },
-        { label: 'Listings', score: proposal.address ? 50 : 0 },
-        { label: 'Reputation', score: proposal.gbpRating ? Math.round((proposal.gbpRating / 5) * 100) : 0 },
-        { label: 'Website Performance', score: proposal.performanceScore || 0 },
-        { label: 'SEO Analysis', score: proposal.seoScore || 0 },
+        { label: 'Business Details', score: (proposal as any).contactName ? 100 : 0 },
+        { label: 'Techno Stack', score: (proposal as any).websiteUrl ? 50 : 0 },
+        { label: 'Google Business Profile', score: googleProfileScore },
+        { label: 'Listings', score: listingScore },
+        { label: 'Reputation', score: reputationScore },
+        { label: 'Website Performance', score: websitePerfScore },
+        { label: 'SEO Analysis', score: lighthouseSeo },
       ]
     : [
         { label: 'Overall Score', score: overallScore },
-        { label: 'Business Details', score: proposal.contactName ? 100 : 0 },
-        { label: 'Google Business Profile', score: proposal.gbpOverallScore || 0 },
-        { label: 'Listings', score: proposal.address ? 50 : 0 },
-        { label: 'Reputation', score: proposal.gbpRating ? Math.round((proposal.gbpRating / 5) * 100) : 0 },
-        { label: 'Online Visibility', score: 0 },
+        { label: 'Business Details', score: (proposal as any).contactName ? 100 : 0 },
+        { label: 'Google Business Profile', score: googleProfileScore },
+        { label: 'Listings', score: listingScore },
+        { label: 'Reputation', score: reputationScore },
+        { label: 'Online Visibility', score: googleProfileScore > 0 ? Math.round(googleProfileScore * 0.7) : 0 },
       ];
 
   return (

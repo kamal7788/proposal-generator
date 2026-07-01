@@ -81,12 +81,15 @@ export default async function EditProposalPage({
     // Sync services
     await db.proposalService.deleteMany({ where: { proposalId: id } });
     if (data.serviceIds?.length) {
-      await db.proposalService.createMany({
-        data: data.serviceIds.map((serviceId: string) => ({
-          proposalId: id,
-          serviceId,
-        })),
-      });
+      for (const serviceId of data.serviceIds) {
+        const pricing = data.servicePricing?.[serviceId];
+        const serviceData: any = { proposalId: id, serviceId };
+        if (pricing) {
+          if (pricing.name) serviceData.packageName = pricing.name;
+          if (pricing.price) serviceData.packagePrice = Number(String(pricing.price).replace(/[^0-9.]/g, "")) || 0;
+        }
+        await db.proposalService.create({ data: serviceData });
+      }
     }
 
     // Sync sections

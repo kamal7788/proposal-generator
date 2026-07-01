@@ -88,7 +88,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [selectedSections, setSelectedSections] = useState<string[]>(
     initialData?.sectionIds || initialData?.sections?.map((s: any) => s.reusableSectionId || s.id) || sections.map((s) => s.id)
   );
-
+  const [servicePricing, setServicePricing] = useState<Record<string, any>>({});
   const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
   const [assessmentFetched, setAssessmentFetched] = useState(false);
@@ -263,6 +263,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       customersPerDay: form.customersPerDay ? Number(form.customersPerDay) : null,
       workingDaysPerMonth: form.workingDaysPerMonth ? Number(form.workingDaysPerMonth) : 26,
       serviceIds: selectedServices,
+      servicePricing,
       sectionIds: selectedSections,
       googleBusinessData: selectedPlace,
       hasWebsite,
@@ -580,8 +581,18 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                       <p className="text-[11px] font-medium text-on-surface-variant mb-2">Select pricing package:</p>
                       <div className="flex gap-2 flex-wrap">
                         {packages.map((pkg: any, i: number) => (
-                          <label key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#c3cdd8]/50 bg-white text-[12px] cursor-pointer hover:bg-surface">
-                            <input type="radio" name={`pricing_${service.id}`} value={JSON.stringify(pkg)} className="text-[#004527]" />
+                          <label key={i} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[12px] cursor-pointer transition-colors ${
+                            servicePricing[service.id]?.name === pkg.name 
+                              ? "border-[#004527] bg-[#004527]/5" 
+                              : "border-[#c3cdd8]/50 bg-white hover:bg-surface"
+                          }`}>
+                            <input 
+                              type="radio" 
+                              name={`pricing_${service.id}`} 
+                              checked={servicePricing[service.id]?.name === pkg.name}
+                              onChange={() => setServicePricing(prev => ({ ...prev, [service.id]: pkg }))}
+                              className="text-[#004527]" 
+                            />
                             <span className="font-medium">{pkg.name}</span>
                             <span className="text-[#004527]">{pkg.price}</span>
                           </label>
