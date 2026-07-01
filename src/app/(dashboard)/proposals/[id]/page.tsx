@@ -6,6 +6,7 @@ import Link from "next/link";
 import ProposalActions from "@/components/proposals/ProposalActions";
 import DeleteProposalButton from "@/components/proposals/DeleteProposalButton";
 import ProposalPricingSection from "@/components/proposals/ProposalPricingSection";
+import DiscountCalculation from "@/components/proposals/DiscountCalculation";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,22 @@ export default async function ProposalDetailPage({
   const proposal = await db.proposal.findUnique({
     where: { id },
     include: {
-      services: { include: { service: true } },
+      services: {
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              pricingPackages: true,
+            },
+          },
+        },
+      },
       sections: { orderBy: { sortOrder: "asc" } },
       auditItems: { orderBy: { sortOrder: "asc" } },
       assumptions: true,
       assets: true,
+      pricingPackages: true,
     },
   });
 
@@ -126,6 +138,21 @@ export default async function ProposalDetailPage({
           {proposal.status !== "complete" && (
             <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
               <ProposalPricingSection proposalId={proposal.id} currency={proposal.currency || "NPR"} />
+              <DiscountCalculation
+                proposalId={proposal.id}
+                currency={proposal.currency || "NPR"}
+                services={proposal.services.map(ps => ({
+                  id: ps.service.id,
+                  name: ps.service.name,
+                  pricingPackages: ps.service.pricingPackages,
+                }))}
+                packages={(proposal.pricingPackages || []).map((p: any) => ({
+                  name: p.name,
+                  price: p.price,
+                  billingPeriod: p.billingPeriod,
+                  isDefault: p.isDefault,
+                }))}
+              />
             </div>
           )}
         </div>

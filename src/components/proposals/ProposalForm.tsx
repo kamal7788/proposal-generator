@@ -45,15 +45,8 @@ const INDUSTRIES = [
 
 const TABS = ["Business Info", "Online Presence", "Assessment", "Services", "Sections"];
 
-const DEFAULT_SERVICE_PACKAGES = [
-  { name: "Starter", price: 20000, features: [] },
-  { name: "Growth", price: 30000, features: [] },
-  { name: "Scale", price: 50000, features: [] },
-];
-
 export default function ProposalForm({ services, sections, onSubmit, initialData, isEdit }: ProposalFormProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [proposalId, setProposalId] = useState<string | null>(initialData?.id || null);
@@ -97,7 +90,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [selectedSections, setSelectedSections] = useState<string[]>(
     initialData?.sectionIds || initialData?.sections?.map((s: any) => s.reusableSectionId || s.id) || sections.map((s) => s.id)
   );
-  const [servicePricing, setServicePricing] = useState<Record<string, any>>(initialData?.servicePricing || {});
   const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
   const [assessmentFetched, setAssessmentFetched] = useState(false);
@@ -105,7 +97,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
   const [hasWebsite, setHasWebsite] = useState(initialData?.hasWebsite !== false);
 
-  // Auto-fetch assessment data when navigating to Assessment tab
   const autoFetchAssessment = useCallback(async () => {
     if (assessmentFetched) return;
     setAssessmentFetched(true);
@@ -187,7 +178,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       customersPerDay: form.customersPerDay ? Number(form.customersPerDay) : null,
       workingDaysPerMonth: form.workingDaysPerMonth ? Number(form.workingDaysPerMonth) : 26,
       serviceIds: selectedServices,
-      servicePricing,
       sectionIds: selectedSections,
       googleBusinessData: selectedPlace,
       hasWebsite,
@@ -198,47 +188,109 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setSaving(true);
     try {
       const data = buildSubmitData();
+      let res;
       if (proposalId) {
-        const res = await fetch(`/api/proposals/${proposalId}`, {
+        res = await fetch(`/api/proposals/${proposalId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        if (res.ok) return proposalId;
       } else {
-        const res = await fetch("/api/proposals", {
+        res = await fetch("/api/proposals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        if (res.ok) {
-          const proposal = await res.json();
-          setProposalId(proposal.id);
-          return proposal.id;
-        }
       }
-    } catch {}
+      if (res?.ok) {
+        const result = await res.json();
+        if (!proposalId && result.id) {
+          setProposalId(result.id);
+          setSaving(false);
+          return result.id;
+        }
+        setSaving(false);
+        return proposalId;
+      }
+    } catch (e) {
+      console.error("Auto-save failed:", e);
+    }
     setSaving(false);
     return null;
   }
 
   async function handleNext() {
     const id = await autoSave();
-    if (id && activeTab < TABS.length - 1) {
-      setActiveTab(activeTab + 1);
+    if (id) {
       if (!isEdit) {
         router.replace(`/proposals/${id}/edit`);
+      } else {
+        setActiveTab(prev => Math.min(prev + 1, TABS.length - 1));
       }
     }
-    setSaving(false);
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    const data = buildSubmitData();
-    await onSubmit(data);
-    setLoading(false);
+  const [generating, setGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState(0);
+
+  const GENERATION_STEPS = [
+    "Saving proposal data...",
+    "Sending prompts to AI...",
+    "Generating section content...",
+    "Almost ready...",
+  ];
+
+  async function handleFinalSubmit() {
+    setGenerating(true);
+    setGenerationStep(0);
+
+    try {
+      const data = buildSubmitData();
+      let id = proposalId;
+
+      // Step 0: Save proposal
+      if (!id) {
+        const createRes = await fetch("/api/proposals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!createRes.ok) throw new Error("Failed to save proposal");
+        const result = await createRes.json();
+        id = result.id;
+      } else {
+        const updateRes = await fetch(`/api/proposals/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!updateRes.ok) throw new Error("Failed to save proposal");
+      }
+
+      if (!id) throw new Error("No proposal ID");
+
+      // Step 1: Trigger AI generation
+      setGenerationStep(1);
+      await new Promise(r => setTimeout(r, 500));
+
+      setGenerationStep(2);
+      const genRes = await fetch(`/api/proposals/${id}/generate`, { method: "POST" });
+      if (!genRes.ok) {
+        const err = await genRes.json();
+        throw new Error(err.error || "AI generation failed");
+      }
+
+      // Step 3: Almost done
+      setGenerationStep(3);
+      await new Promise(r => setTimeout(r, 800));
+
+      // Redirect to proposal detail page
+      window.location.href = `/proposals/${id}`;
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+      setGenerating(false);
+      setGenerationStep(0);
+    }
   }
 
   async function fetchPageSpeed() {
@@ -313,11 +365,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       if (data.openingHours) localSeoScore += 10;
       if (data.types && data.types.length > 0) localSeoScore += 5;
 
-      setForm(prev => ({
-        ...prev,
-        googleProfileScore: profileScore,
-        localSeoScore: localSeoScore,
-      }));
+      setForm(prev => ({ ...prev, googleProfileScore: profileScore, localSeoScore: localSeoScore }));
     } catch { alert("Failed to fetch place details"); }
     setFetchingPlaces(false);
   }
@@ -330,8 +378,49 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setSelectedSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }
 
+  if (generating) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl border border-[#c3cdd8]/50 shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#004527]/10 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[32px] text-[#004527] animate-pulse">auto_awesome</span>
+            </div>
+            <h2 className="text-lg font-semibold text-on-surface font-[family-name:var(--font-display)]">Generating Your Proposal</h2>
+            <p className="text-[13px] text-on-surface-variant mt-1">AI is crafting custom content for each section</p>
+          </div>
+          <div className="space-y-3">
+            {GENERATION_STEPS.map((step, i) => (
+              <div key={i} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                i < generationStep ? "bg-[#004527]/5" :
+                i === generationStep ? "bg-[#004527]/10 ring-1 ring-[#004527]/20" :
+                "bg-surface"
+              }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-medium ${
+                  i < generationStep ? "bg-[#004527] text-white" :
+                  i === generationStep ? "bg-[#004527] text-white animate-pulse" :
+                  "bg-[#c3cdd8]/50 text-on-surface-variant"
+                }`}>
+                  {i < generationStep ? "✓" : i + 1}
+                </div>
+                <span className={`text-[13px] ${
+                  i <= generationStep ? "text-on-surface font-medium" : "text-on-surface-variant"
+                }`}>{step}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6">
+            <div className="h-1.5 bg-[#c3cdd8]/30 rounded-full overflow-hidden">
+              <div className="h-full bg-[#004527] rounded-full transition-all duration-500" style={{ width: `${((generationStep + 1) / GENERATION_STEPS.length) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={e => { e.preventDefault(); }} className="space-y-5">
       <div className="flex items-center gap-1 bg-white rounded-lg border border-[#c3cdd8]/50 p-1 mb-6 overflow-x-auto">
         {TABS.map((tab, i) => (
           <button key={tab} type="button" onClick={() => setActiveTab(i)}
@@ -341,7 +430,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             {tab}
           </button>
         ))}
-        {saving && <span className="text-[11px] text-on-surface-variant ml-2">Saving...</span>}
+        {saving && <span className="text-[11px] text-on-surface-variant ml-2 flex items-center gap-1"><span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span> Saving...</span>}
       </div>
 
       {/* Tab 0: Business Basics */}
@@ -376,7 +465,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                   <span className="material-symbols-outlined text-[18px] text-orange-600 mt-0.5">info</span>
                   <div>
                     <p className="text-[13px] font-medium text-orange-800">No Website Detected</p>
-                    <p className="text-[12px] text-orange-700 mt-1">The proposal will focus on missed opportunities and the revenue gap from not having an online presence. Website performance scores will be skipped.</p>
+                    <p className="text-[12px] text-orange-700 mt-1">The proposal will focus on missed opportunities and the revenue gap from not having an online presence.</p>
                   </div>
                 </div>
               </div>
@@ -397,12 +486,12 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         </div>
       )}
 
-      {/* Tab 1: Online Presence + Discovery */}
+      {/* Tab 1: Online Presence + Revenue Baseline */}
       {activeTab === 1 && (
         <>
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-[18px] text-[#004527]">public</span>
+              <span className="material-symbols-outlined text-[18px] text-[#004527]">calculate</span>
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Revenue Baseline</h3>
             </div>
             <p className="text-[12px] text-on-surface-variant mb-4">Set baseline metrics to calculate ROI projections for this proposal.</p>
@@ -488,21 +577,18 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               {hasWebsite ? (
                 fetchingScores ? (
                   <span className="text-[12px] text-[#004527] flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-                    Fetching...
+                    <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span> Fetching...
                   </span>
                 ) : form.lighthousePerformance ? (
                   <span className="text-[12px] text-[#15803d] flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                    Auto-fetched
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span> Auto-fetched
                   </span>
                 ) : (
                   <Button type="button" variant="outline" size="sm" onClick={fetchPageSpeed}>Fetch Now</Button>
                 )
               ) : (
                 <span className="text-[12px] text-on-surface-variant flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">info</span>
-                  Skipped - No website
+                  <span className="material-symbols-outlined text-[14px]">info</span> Skipped - No website
                 </span>
               )}
             </div>
@@ -549,60 +635,28 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         </>
       )}
 
-      {/* Tab 3: Service Selection */}
+      {/* Tab 3: Service Selection - Simple checkboxes */}
       {activeTab === 3 && (
         <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[18px] text-[#004527]">widgets</span>
-            <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Select Services & Pricing</h3>
+            <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Select Services</h3>
           </div>
-          <p className="text-[12px] text-on-surface-variant mb-4">Choose services and select a pricing tier for each</p>
-          <div className="space-y-3">
+          <p className="text-[12px] text-on-surface-variant mb-4">Choose which services to include in this proposal</p>
+          <div className="space-y-2">
             {services.map((service) => {
               const isSelected = selectedServices.includes(service.id);
-              const servicePkgs = (service.pricingPackages as any[] || []);
-              const packages = servicePkgs.length > 0 ? servicePkgs : DEFAULT_SERVICE_PACKAGES;
               return (
-                <div key={service.id} className={`rounded-lg border transition-all ${isSelected ? "border-[#004527] bg-[#004527]/5" : "border-[#c3cdd8]/50 hover:border-[#004527]/30"}`}>
-                  <button type="button" onClick={() => toggleService(service.id)} className="w-full p-4 text-left">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#004527] border-[#004527]" : "border-[#c3cdd8]"}`}>
-                        {isSelected && <span className="material-symbols-outlined text-[12px] text-white">check</span>}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-[13px] text-on-surface">{service.name}</p>
-                        {service.shortDescription && <p className="text-[11px] text-on-surface-variant mt-0.5">{service.shortDescription}</p>}
-                      </div>
-                      {isSelected && servicePricing[service.id] && (
-                        <span className="text-[12px] font-semibold text-[#004527]">{form.currency} {servicePricing[service.id].price?.toLocaleString()}</span>
-                      )}
-                    </div>
-                  </button>
-                  {isSelected && (
-                    <div className="px-4 pb-4 pt-0">
-                      <p className="text-[11px] font-medium text-on-surface-variant mb-2">Select pricing tier:</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {packages.map((pkg: any, i: number) => (
-                          <label key={i} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[12px] cursor-pointer transition-colors ${
-                            servicePricing[service.id]?.name === pkg.name 
-                              ? "border-[#004527] bg-[#004527]/5" 
-                              : "border-[#c3cdd8]/50 bg-white hover:bg-surface"
-                          }`}>
-                            <input 
-                              type="radio" 
-                              name={`pricing_${service.id}`} 
-                              checked={servicePricing[service.id]?.name === pkg.name}
-                              onChange={() => setServicePricing(prev => ({ ...prev, [service.id]: pkg }))}
-                              className="text-[#004527]" 
-                            />
-                            <span className="font-medium">{pkg.name}</span>
-                            <span className="text-[#004527]">{form.currency} {(pkg.price || 0).toLocaleString()}/mo</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <label key={service.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  isSelected ? "border-[#004527] bg-[#004527]/5" : "border-[#c3cdd8]/50 hover:bg-surface"
+                }`}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleService(service.id)}
+                    className="w-4 h-4 rounded border-[#c3cdd8] text-[#004527] focus:ring-[#004527]" />
+                  <div className="flex-1">
+                    <p className="text-[13px] font-medium text-on-surface">{service.name}</p>
+                    {service.shortDescription && <p className="text-[11px] text-on-surface-variant">{service.shortDescription}</p>}
+                  </div>
+                </label>
               );
             })}
           </div>
@@ -634,13 +688,13 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
 
       {/* Navigation */}
       <div className="flex justify-between gap-3 pt-2">
-        <div>{activeTab > 0 && <Button type="button" variant="outline" onClick={() => setActiveTab(activeTab - 1)}>Previous</Button>}</div>
+        <div>{activeTab > 0 && <Button type="button" variant="outline" onClick={() => setActiveTab(prev => prev - 1)}>Previous</Button>}</div>
         <div className="flex gap-3">
           <Button type="button" variant="outline" onClick={() => history.back()}>Cancel</Button>
           {activeTab < TABS.length - 1 ? (
             <Button type="button" loading={saving} onClick={handleNext}>Save & Next</Button>
           ) : (
-            <Button type="submit" loading={loading} size="lg">{isEdit ? "Save Changes" : "Create Proposal"}</Button>
+            <Button type="button" onClick={handleFinalSubmit} size="lg">Generate Proposal</Button>
           )}
         </div>
       </div>

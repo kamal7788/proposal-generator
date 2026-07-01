@@ -10,10 +10,15 @@ export default async function ServicesPage() {
     include: { _count: { select: { proposals: true } } },
   });
 
+  const mappedServices = services.map(s => ({
+    ...s,
+    pricingPackages: Array.isArray(s.pricingPackages) ? s.pricingPackages as any : null,
+  }));
+
   return (
     <div>
       <Header title="Modules" subtitle="Manage your service offerings and bundles" />
-      <ServiceManager services={services} />
+      <ServiceManager services={mappedServices} />
     </div>
   );
 }

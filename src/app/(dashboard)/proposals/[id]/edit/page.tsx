@@ -84,13 +84,7 @@ export default async function EditProposalPage({
     await db.proposalService.deleteMany({ where: { proposalId: id } });
     if (data.serviceIds?.length) {
       for (const serviceId of data.serviceIds) {
-        const pricing = data.servicePricing?.[serviceId];
-        const serviceData: any = { proposalId: id, serviceId };
-        if (pricing) {
-          if (pricing.name) serviceData.packageName = pricing.name;
-          if (pricing.price) serviceData.packagePrice = Number(String(pricing.price).replace(/[^0-9.]/g, "")) || 0;
-        }
-        await db.proposalService.create({ data: serviceData });
+        await db.proposalService.create({ data: { proposalId: id, serviceId } });
       }
     }
 
@@ -111,8 +105,6 @@ export default async function EditProposalPage({
         });
       }
     }
-
-    redirect(`/proposals/${id}`);
   }
 
   const initialData = {

@@ -33,6 +33,7 @@ export default async function NewProposalPage() {
         contactPhone: data.contactPhone || null,
         address: data.address || null,
         websiteUrl: data.websiteUrl || null,
+        hasWebsite: data.hasWebsite !== false,
         googleMapsLink: data.googleMapsLink || null,
         googleBusinessProfile: data.googleBusinessProfile || null,
         industry: data.industry || null,
@@ -45,6 +46,9 @@ export default async function NewProposalPage() {
         currentLeadVolume: data.currentLeadVolume || null,
         currentMonthlyTraffic: data.currentMonthlyTraffic || null,
         approximateRevenue: data.approximateRevenue || null,
+        avgCustomerSpend: data.avgCustomerSpend ? Number(data.avgCustomerSpend) : null,
+        customersPerDay: data.customersPerDay ? Number(data.customersPerDay) : null,
+        workingDaysPerMonth: data.workingDaysPerMonth ? Number(data.workingDaysPerMonth) : 26,
         existingCrm: data.existingCrm || null,
         competitors: data.competitors || null,
         websiteSpeedScore: data.websiteSpeedScore ? parseInt(data.websiteSpeedScore) : null,
@@ -52,8 +56,10 @@ export default async function NewProposalPage() {
         lighthouseAccessibility: data.lighthouseAccessibility ? parseInt(data.lighthouseAccessibility) : null,
         lighthouseSeo: data.lighthouseSeo ? parseInt(data.lighthouseSeo) : null,
         lighthouseBestPractices: data.lighthouseBestPractices ? parseInt(data.lighthouseBestPractices) : null,
+        lighthouseAgenticBrowsing: data.lighthouseAgenticBrowsing ? parseInt(data.lighthouseAgenticBrowsing) : null,
         googleProfileScore: data.googleProfileScore ? parseInt(data.googleProfileScore) : null,
         localSeoScore: data.localSeoScore ? parseInt(data.localSeoScore) : null,
+        googleBusinessData: data.googleBusinessData || undefined,
         shareSlug: generateSlug(),
         services: {
           create: data.serviceIds?.map((serviceId: string) => ({
