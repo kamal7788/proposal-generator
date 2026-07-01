@@ -44,7 +44,7 @@ export async function PATCH(
 
   const body = await request.json();
 
-  const scoreFields = ["websiteSpeedScore", "lighthousePerformance", "lighthouseAccessibility", "lighthouseSeo", "lighthouseBestPractices", "googleProfileScore", "localSeoScore"];
+  const scoreFields = ["websiteSpeedScore", "lighthousePerformance", "lighthouseAccessibility", "lighthouseSeo", "lighthouseBestPractices", "lighthouseAgenticBrowsing", "googleProfileScore", "localSeoScore"];
   for (const field of scoreFields) {
     if (body[field] !== undefined && body[field] !== "" && body[field] !== null) {
       body[field] = Number(body[field]);

@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       lighthouseAccessibility: body.lighthouseAccessibility ? Number(body.lighthouseAccessibility) : null,
       lighthouseSeo: body.lighthouseSeo ? Number(body.lighthouseSeo) : null,
       lighthouseBestPractices: body.lighthouseBestPractices ? Number(body.lighthouseBestPractices) : null,
+      lighthouseAgenticBrowsing: body.lighthouseAgenticBrowsing ? Number(body.lighthouseAgenticBrowsing) : null,
       googleProfileScore: autoGoogleProfileScore,
       localSeoScore: autoLocalSeoScore,
       localSeoGrid: body.localSeoGrid || undefined,

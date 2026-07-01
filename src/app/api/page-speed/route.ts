@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
     const keyParam = apiKey ? `&key=${apiKey}` : "";
     const categories = "category=performance&category=accessibility&category=seo&category=best-practices";
 
-    // Fetch mobile and desktop in parallel
     const mobileUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&${categories}&strategy=mobile${keyParam}`;
     const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&${categories}&strategy=desktop${keyParam}`;
 
@@ -43,9 +42,9 @@ export async function POST(req: NextRequest) {
       fetchWithTimeout(desktopUrl, 45000),
     ]);
 
-    // Process mobile results
-    let scores = { performance: 0, accessibility: 0, seo: 0, bestPractices: 0 };
+    let scores = { performance: 0, accessibility: 0, seo: 0, bestPractices: 0, agenticBrowsing: 0 };
     let metrics: any = {};
+
     if (mobileRes.status === "fulfilled") {
       const mobileData = await mobileRes.value.json();
       if (mobileData.error) {
@@ -61,6 +60,7 @@ export async function POST(req: NextRequest) {
         accessibility: Math.round((cats.accessibility?.score || 0) * 100),
         seo: Math.round((cats.seo?.score || 0) * 100),
         bestPractices: Math.round((cats["best-practices"]?.score || 0) * 100),
+        agenticBrowsing: Math.round((cats["agentic-browsing"]?.score || cats["experimental"]?.score || 0) * 100),
       };
       metrics = {
         speedIndex: lighthouse?.audits?.["speed-index"]?.displayValue || null,
@@ -71,7 +71,6 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // Process desktop results
     let desktopScores = null;
     if (desktopRes.status === "fulfilled") {
       const desktopData = await desktopRes.value.json();

@@ -73,6 +73,7 @@ export default async function EditProposalPage({
         lighthouseAccessibility: data.lighthouseAccessibility ? parseInt(data.lighthouseAccessibility) : null,
         lighthouseSeo: data.lighthouseSeo ? parseInt(data.lighthouseSeo) : null,
         lighthouseBestPractices: data.lighthouseBestPractices ? parseInt(data.lighthouseBestPractices) : null,
+        lighthouseAgenticBrowsing: data.lighthouseAgenticBrowsing ? parseInt(data.lighthouseAgenticBrowsing) : null,
         googleProfileScore: data.googleProfileScore ? parseInt(data.googleProfileScore) : null,
         localSeoScore: data.localSeoScore ? parseInt(data.localSeoScore) : null,
         googleBusinessData: data.googleBusinessData || undefined,

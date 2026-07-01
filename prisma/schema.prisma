@@ -97,6 +97,7 @@ model Proposal {
   lighthouseAccessibility Int?
   lighthouseSeo         Int?
   lighthouseBestPractices Int?
+  lighthouseAgenticBrowsing Int?
   googleProfileScore    Int?
   localSeoScore         Int?
   status                String    @default("draft")

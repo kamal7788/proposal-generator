@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { CURRENCIES } from "@/lib/utils";
@@ -44,11 +45,19 @@ const INDUSTRIES = [
 
 const TABS = ["Business Info", "Online Presence", "Assessment", "Services", "Sections"];
 
-export default function ProposalForm({ services, sections, onSubmit, initialData, isEdit }: ProposalFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+const DEFAULT_SERVICE_PACKAGES = [
+  { name: "Starter", price: 20000, features: [] },
+  { name: "Growth", price: 30000, features: [] },
+  { name: "Scale", price: 50000, features: [] },
+];
 
-  // All form state lifted up here so it persists across tab switches
+export default function ProposalForm({ services, sections, onSubmit, initialData, isEdit }: ProposalFormProps) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [proposalId, setProposalId] = useState<string | null>(initialData?.id || null);
+
   const [form, setForm] = useState({
     businessName: initialData?.businessName || "",
     contactName: initialData?.contactName || "",
@@ -60,7 +69,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     serviceArea: initialData?.serviceArea || "",
     googleMapsLink: initialData?.googleMapsLink || "",
     currency: initialData?.currency || "NPR",
-    googleBusinessProfile: initialData?.googleBusinessProfile || "",
     currentLeadVolume: initialData?.currentLeadVolume || "",
     currentMonthlyTraffic: initialData?.currentMonthlyTraffic || "",
     approximateRevenue: initialData?.approximateRevenue || "",
@@ -78,6 +86,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     lighthouseAccessibility: initialData?.lighthouseAccessibility || "",
     lighthouseSeo: initialData?.lighthouseSeo || "",
     lighthouseBestPractices: initialData?.lighthouseBestPractices || "",
+    lighthouseAgenticBrowsing: initialData?.lighthouseAgenticBrowsing || "",
     googleProfileScore: initialData?.googleProfileScore || "",
     localSeoScore: initialData?.localSeoScore || "",
   });
@@ -88,7 +97,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [selectedSections, setSelectedSections] = useState<string[]>(
     initialData?.sectionIds || initialData?.sections?.map((s: any) => s.reusableSectionId || s.id) || sections.map((s) => s.id)
   );
-  const [servicePricing, setServicePricing] = useState<Record<string, any>>({});
+  const [servicePricing, setServicePricing] = useState<Record<string, any>>(initialData?.servicePricing || {});
   const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
   const [assessmentFetched, setAssessmentFetched] = useState(false);
@@ -101,7 +110,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     if (assessmentFetched) return;
     setAssessmentFetched(true);
 
-    // Auto-fetch PageSpeed if website URL is set and scores are empty
     const normalizedUrl = normalizeUrl(form.websiteUrl);
     if (hasWebsite && normalizedUrl && !form.lighthousePerformance) {
       setFetchingScores(true);
@@ -121,13 +129,13 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             lighthouseAccessibility: data.scores.accessibility,
             lighthouseSeo: data.scores.seo,
             lighthouseBestPractices: data.scores.bestPractices,
+            lighthouseAgenticBrowsing: data.scores.agenticBrowsing || "",
           }));
         }
       } catch {}
       setFetchingScores(false);
     }
 
-    // Auto-search Google Places if business name is set and no place selected
     if (form.businessName && !selectedPlace) {
       setFetchingPlaces(true);
       try {
@@ -139,7 +147,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         const data = await res.json();
         if (!data.error && data.results?.length > 0) {
           setPlacesResults(data.results);
-          // Auto-select first result
           const detailRes = await fetch("/api/google-places", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -173,6 +180,67 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     return trimmed;
   }
 
+  function buildSubmitData() {
+    return {
+      ...form,
+      avgCustomerSpend: form.avgCustomerSpend ? Number(form.avgCustomerSpend) : null,
+      customersPerDay: form.customersPerDay ? Number(form.customersPerDay) : null,
+      workingDaysPerMonth: form.workingDaysPerMonth ? Number(form.workingDaysPerMonth) : 26,
+      serviceIds: selectedServices,
+      servicePricing,
+      sectionIds: selectedSections,
+      googleBusinessData: selectedPlace,
+      hasWebsite,
+    };
+  }
+
+  async function autoSave(): Promise<string | null> {
+    setSaving(true);
+    try {
+      const data = buildSubmitData();
+      if (proposalId) {
+        const res = await fetch(`/api/proposals/${proposalId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) return proposalId;
+      } else {
+        const res = await fetch("/api/proposals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          const proposal = await res.json();
+          setProposalId(proposal.id);
+          return proposal.id;
+        }
+      }
+    } catch {}
+    setSaving(false);
+    return null;
+  }
+
+  async function handleNext() {
+    const id = await autoSave();
+    if (id && activeTab < TABS.length - 1) {
+      setActiveTab(activeTab + 1);
+      if (!isEdit) {
+        router.replace(`/proposals/${id}/edit`);
+      }
+    }
+    setSaving(false);
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const data = buildSubmitData();
+    await onSubmit(data);
+    setLoading(false);
+  }
+
   async function fetchPageSpeed() {
     const url = normalizeUrl(form.websiteUrl);
     if (!url) { alert("Please enter a Website URL first"); return; }
@@ -193,6 +261,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         lighthouseAccessibility: data.scores.accessibility,
         lighthouseSeo: data.scores.seo,
         lighthouseBestPractices: data.scores.bestPractices,
+        lighthouseAgenticBrowsing: data.scores.agenticBrowsing || "",
       }));
     } catch { alert("Failed to fetch PageSpeed scores"); }
     setFetchingScores(false);
@@ -226,7 +295,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setSelectedPlace(data);
-      // Auto-calculate GBP scores from fetched data
       let profileScore = 0;
       if (data.name) profileScore += 20;
       if (data.address) profileScore += 20;
@@ -254,23 +322,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setFetchingPlaces(false);
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    const data = {
-      ...form,
-      avgCustomerSpend: form.avgCustomerSpend ? Number(form.avgCustomerSpend) : null,
-      customersPerDay: form.customersPerDay ? Number(form.customersPerDay) : null,
-      workingDaysPerMonth: form.workingDaysPerMonth ? Number(form.workingDaysPerMonth) : 26,
-      serviceIds: selectedServices,
-      servicePricing,
-      sectionIds: selectedSections,
-      googleBusinessData: selectedPlace,
-      hasWebsite,
-    };
-    await onSubmit(data);
-  }
-
   function toggleService(id: string) {
     setSelectedServices(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }
@@ -290,6 +341,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             {tab}
           </button>
         ))}
+        {saving && <span className="text-[11px] text-on-surface-variant ml-2">Saving...</span>}
       </div>
 
       {/* Tab 0: Business Basics */}
@@ -306,11 +358,8 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <Input name="contactPhone" label="Phone" value={form.contactPhone} onChange={e => updateField("contactPhone", e.target.value)} icon="call" />
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-[#c3cdd8]/50">
-                <button
-                  type="button"
-                  onClick={() => setHasWebsite(!hasWebsite)}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${hasWebsite ? "bg-[#004527]" : "bg-gray-300"}`}
-                >
+                <button type="button" onClick={() => setHasWebsite(!hasWebsite)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${hasWebsite ? "bg-[#004527]" : "bg-gray-300"}`}>
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${hasWebsite ? "translate-x-5" : ""}`} />
                 </button>
                 <div>
@@ -333,6 +382,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
               </div>
             )}
             <Select name="industry" label="Industry" options={INDUSTRIES} value={form.industry} onChange={e => updateField("industry", e.target.value)} />
+            <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
             <Input name="address" label="Business Address" value={form.address} onChange={e => updateField("address", e.target.value)} className="md:col-span-2" icon="location_on" />
             <Input name="serviceArea" label="Service Area / Locations" value={form.serviceArea} onChange={e => updateField("serviceArea", e.target.value)} icon="map" />
             <Input name="googleMapsLink" label="Google Maps Link" value={form.googleMapsLink} onChange={e => updateField("googleMapsLink", e.target.value)} icon="place" />
@@ -353,70 +403,18 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="material-symbols-outlined text-[18px] text-[#004527]">public</span>
-              <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Online Presence</h3>
-            </div>
-            <div className="space-y-4">
-              {!hasWebsite && (
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined text-[18px] text-orange-600 mt-0.5">info</span>
-                    <div>
-                      <p className="text-[13px] font-medium text-orange-800">No Website Detected</p>
-                      <p className="text-[12px] text-orange-700 mt-1">Website performance analysis will be skipped. The proposal will focus on building an online presence from scratch.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <Input name="googleBusinessProfile" label="Google Business Profile Link" value={form.googleBusinessProfile} onChange={e => updateField("googleBusinessProfile", e.target.value)} icon="business_center" />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input name="currentLeadVolume" label="Current Lead Volume" value={form.currentLeadVolume} onChange={e => updateField("currentLeadVolume", e.target.value)} placeholder="e.g. 50/month" icon="trending_up" />
-                <Input 
-                  name="currentMonthlyTraffic" 
-                  label="Monthly Website Traffic" 
-                  value={form.currentMonthlyTraffic} 
-                  onChange={e => updateField("currentMonthlyTraffic", e.target.value)} 
-                  placeholder={hasWebsite ? "e.g. 2000" : "No website - not applicable"} 
-                  icon="bar_chart"
-                  disabled={!hasWebsite}
-                  className={!hasWebsite ? "opacity-50 cursor-not-allowed" : ""}
-                />
-                <Input name="approximateRevenue" label="Approximate Revenue" value={form.approximateRevenue} onChange={e => updateField("approximateRevenue", e.target.value)} placeholder="e.g. NPR 500,000/mo" icon="payments" />
-              </div>
-              <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-[18px] text-[#004527]">calculate</span>
               <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Revenue Baseline</h3>
             </div>
             <p className="text-[12px] text-on-surface-variant mb-4">Set baseline metrics to calculate ROI projections for this proposal.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input
-                name="avgCustomerSpend"
-                label="Avg Customer Spend"
-                value={form.avgCustomerSpend}
-                onChange={e => updateField("avgCustomerSpend", e.target.value)}
-                placeholder="e.g. 2000"
-                icon="payments"
-              />
-              <Input
-                name="customersPerDay"
-                label="Customers per Day"
-                value={form.customersPerDay}
-                onChange={e => updateField("customersPerDay", e.target.value)}
-                placeholder="e.g. 10"
-                icon="group"
-              />
-              <Input
-                name="workingDaysPerMonth"
-                label="Working Days/Month"
-                value={form.workingDaysPerMonth}
-                onChange={e => updateField("workingDaysPerMonth", e.target.value)}
-                placeholder="e.g. 26"
-                icon="calendar_month"
-              />
+              <Input name="currentLeadVolume" label="Current Lead Volume" value={form.currentLeadVolume} onChange={e => updateField("currentLeadVolume", e.target.value)} placeholder="e.g. 50/month" icon="trending_up" />
+              <Input name="currentMonthlyTraffic" label="Monthly Website Traffic" value={form.currentMonthlyTraffic} onChange={e => updateField("currentMonthlyTraffic", e.target.value)} placeholder={hasWebsite ? "e.g. 2000" : "No website"} icon="bar_chart" disabled={!hasWebsite} className={!hasWebsite ? "opacity-50 cursor-not-allowed" : ""} />
+              <Input name="approximateRevenue" label="Approximate Revenue" value={form.approximateRevenue} onChange={e => updateField("approximateRevenue", e.target.value)} placeholder="e.g. NPR 500,000/mo" icon="payments" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <Input name="avgCustomerSpend" label="Avg Customer Spend" value={form.avgCustomerSpend} onChange={e => updateField("avgCustomerSpend", e.target.value)} placeholder="e.g. 2000" icon="payments" />
+              <Input name="customersPerDay" label="Customers per Day" value={form.customersPerDay} onChange={e => updateField("customersPerDay", e.target.value)} placeholder="e.g. 10" icon="group" />
+              <Input name="workingDaysPerMonth" label="Working Days/Month" value={form.workingDaysPerMonth} onChange={e => updateField("workingDaysPerMonth", e.target.value)} placeholder="e.g. 26" icon="calendar_month" />
             </div>
             {form.avgCustomerSpend && form.customersPerDay && (
               <div className="mt-4 p-3 bg-[#004527]/5 rounded-lg border border-[#004527]/10">
@@ -508,26 +506,26 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-[13px] font-medium text-on-surface mb-1.5">Speed Score</label>
-                <input type="number" name="websiteSpeedScore" min="0" max="100" value={form.websiteSpeedScore} onChange={e => updateField("websiteSpeedScore", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Performance</label>
-                <input type="number" name="lighthousePerformance" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+                <input type="number" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Accessibility</label>
-                <input type="number" name="lighthouseAccessibility" min="0" max="100" value={form.lighthouseAccessibility} onChange={e => updateField("lighthouseAccessibility", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-on-surface mb-1.5">SEO</label>
-                <input type="number" name="lighthouseSeo" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+                <input type="number" min="0" max="100" value={form.lighthouseAccessibility} onChange={e => updateField("lighthouseAccessibility", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Best Practices</label>
-                <input type="number" name="lighthouseBestPractices" min="0" max="100" value={form.lighthouseBestPractices} onChange={e => updateField("lighthouseBestPractices", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+                <input type="number" min="0" max="100" value={form.lighthouseBestPractices} onChange={e => updateField("lighthouseBestPractices", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-on-surface mb-1.5">SEO</label>
+                <input type="number" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-on-surface mb-1.5">Agentic Browsing</label>
+                <input type="number" min="0" max="100" value={form.lighthouseAgenticBrowsing} onChange={e => updateField("lighthouseAgenticBrowsing", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
             </div>
           </div>
@@ -540,11 +538,11 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Google Profile Score</label>
-                <input type="number" name="googleProfileScore" min="0" max="100" value={form.googleProfileScore} onChange={e => updateField("googleProfileScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" min="0" max="100" value={form.googleProfileScore} onChange={e => updateField("googleProfileScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Local SEO Score</label>
-                <input type="number" name="localSeoScore" min="0" max="100" value={form.localSeoScore} onChange={e => updateField("localSeoScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
+                <input type="number" min="0" max="100" value={form.localSeoScore} onChange={e => updateField("localSeoScore", Number(e.target.value))} className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px]" placeholder="0-100" />
               </div>
             </div>
           </div>
@@ -558,11 +556,12 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <span className="material-symbols-outlined text-[18px] text-[#004527]">widgets</span>
             <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Select Services & Pricing</h3>
           </div>
-          <p className="text-[12px] text-on-surface-variant mb-4">Choose services and optionally set per-proposal pricing</p>
+          <p className="text-[12px] text-on-surface-variant mb-4">Choose services and select a pricing tier for each</p>
           <div className="space-y-3">
             {services.map((service) => {
               const isSelected = selectedServices.includes(service.id);
-              const packages = service.pricingPackages as any[] || [];
+              const servicePkgs = (service.pricingPackages as any[] || []);
+              const packages = servicePkgs.length > 0 ? servicePkgs : DEFAULT_SERVICE_PACKAGES;
               return (
                 <div key={service.id} className={`rounded-lg border transition-all ${isSelected ? "border-[#004527] bg-[#004527]/5" : "border-[#c3cdd8]/50 hover:border-[#004527]/30"}`}>
                   <button type="button" onClick={() => toggleService(service.id)} className="w-full p-4 text-left">
@@ -570,15 +569,18 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? "bg-[#004527] border-[#004527]" : "border-[#c3cdd8]"}`}>
                         {isSelected && <span className="material-symbols-outlined text-[12px] text-white">check</span>}
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-[13px] text-on-surface">{service.name}</p>
                         {service.shortDescription && <p className="text-[11px] text-on-surface-variant mt-0.5">{service.shortDescription}</p>}
                       </div>
+                      {isSelected && servicePricing[service.id] && (
+                        <span className="text-[12px] font-semibold text-[#004527]">{form.currency} {servicePricing[service.id].price?.toLocaleString()}</span>
+                      )}
                     </div>
                   </button>
-                  {isSelected && packages.length > 0 && (
+                  {isSelected && (
                     <div className="px-4 pb-4 pt-0">
-                      <p className="text-[11px] font-medium text-on-surface-variant mb-2">Select pricing package:</p>
+                      <p className="text-[11px] font-medium text-on-surface-variant mb-2">Select pricing tier:</p>
                       <div className="flex gap-2 flex-wrap">
                         {packages.map((pkg: any, i: number) => (
                           <label key={i} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[12px] cursor-pointer transition-colors ${
@@ -594,7 +596,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                               className="text-[#004527]" 
                             />
                             <span className="font-medium">{pkg.name}</span>
-                            <span className="text-[#004527]">{pkg.price}</span>
+                            <span className="text-[#004527]">{form.currency} {(pkg.price || 0).toLocaleString()}/mo</span>
                           </label>
                         ))}
                       </div>
@@ -636,7 +638,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         <div className="flex gap-3">
           <Button type="button" variant="outline" onClick={() => history.back()}>Cancel</Button>
           {activeTab < TABS.length - 1 ? (
-            <Button type="button" onClick={() => setActiveTab(activeTab + 1)}>Next</Button>
+            <Button type="button" loading={saving} onClick={handleNext}>Save & Next</Button>
           ) : (
             <Button type="submit" loading={loading} size="lg">{isEdit ? "Save Changes" : "Create Proposal"}</Button>
           )}
