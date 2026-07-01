@@ -63,6 +63,30 @@ export async function PATCH(
     }
   }
 
+  // Auto-calculate Google Business Profile scores from GBP data
+  if (body.googleBusinessData && typeof body.googleBusinessData === "object") {
+    const gbp = body.googleBusinessData;
+    let profileScore = 0;
+    if (gbp.name) profileScore += 20;
+    if (gbp.address) profileScore += 20;
+    if (gbp.phone) profileScore += 15;
+    if (gbp.website) profileScore += 15;
+    if (gbp.reviewCount > 0) profileScore += 15;
+    if (gbp.photos && gbp.photos.length > 0) profileScore += 15;
+    body.googleProfileScore = profileScore;
+
+    let localSeoScore = 0;
+    if (gbp.name) localSeoScore += 30;
+    if (gbp.rating >= 4.0) localSeoScore += 20;
+    else if (gbp.rating >= 3.0) localSeoScore += 10;
+    if (gbp.reviewCount >= 10) localSeoScore += 15;
+    else if (gbp.reviewCount >= 1) localSeoScore += 5;
+    if (gbp.photos && gbp.photos.length >= 3) localSeoScore += 10;
+    if (gbp.openingHours) localSeoScore += 10;
+    if (gbp.types && gbp.types.length > 0) localSeoScore += 5;
+    body.localSeoScore = localSeoScore;
+  }
+
   const proposal = await db.proposal.update({
     where: { id },
     data: body,

@@ -19,11 +19,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL. Must be a valid public HTTP/HTTPS URL." }, { status: 400 });
     }
 
-    const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=mobile`;
+    const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || "";
+    const keyParam = apiKey ? `&key=${apiKey}` : "";
+
+    const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=mobile${keyParam}`;
     const res = await fetch(psiUrl);
     const data = await res.json();
 
     if (data.error) {
+      console.error("PageSpeed API error:", JSON.stringify(data.error));
+      if (data.error.code === 429) {
+        return NextResponse.json({ error: "PageSpeed API quota exceeded. Please try again later or configure GOOGLE_PAGESPEED_API_KEY." }, { status: 429 });
+      }
       return NextResponse.json({ error: "PageSpeed API error" }, { status: 500 });
     }
 
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
     // Fetch desktop scores
     let desktopScores = null;
     try {
-      const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=desktop`;
+      const desktopUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=performance&category=accessibility&category=seo&category=best-practices&strategy=desktop${keyParam}`;
       const desktopRes = await fetch(desktopUrl);
       const desktopData = await desktopRes.json();
       if (!desktopData.error) {

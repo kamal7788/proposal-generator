@@ -12,7 +12,7 @@ export default async function PublicProposalPage({
   const { slug } = await params;
 
   const proposal = await db.proposal.findUnique({
-    where: { shareSlug: slug, status: "complete" },
+    where: { shareSlug: slug },
     include: {
       services: { include: { service: true } },
       sections: { orderBy: { sortOrder: "asc" } },

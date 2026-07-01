@@ -226,7 +226,30 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setSelectedPlace(data);
-      setForm(prev => ({ ...prev, googleProfileScore: data.totalScore || "" }));
+      // Auto-calculate GBP scores from fetched data
+      let profileScore = 0;
+      if (data.name) profileScore += 20;
+      if (data.address) profileScore += 20;
+      if (data.phone) profileScore += 15;
+      if (data.website) profileScore += 15;
+      if (data.reviewCount > 0) profileScore += 15;
+      if (data.photos && data.photos.length > 0) profileScore += 15;
+
+      let localSeoScore = 0;
+      if (data.name) localSeoScore += 30;
+      if (data.rating >= 4.0) localSeoScore += 20;
+      else if (data.rating >= 3.0) localSeoScore += 10;
+      if (data.reviewCount >= 10) localSeoScore += 15;
+      else if (data.reviewCount >= 1) localSeoScore += 5;
+      if (data.photos && data.photos.length >= 3) localSeoScore += 10;
+      if (data.openingHours) localSeoScore += 10;
+      if (data.types && data.types.length > 0) localSeoScore += 5;
+
+      setForm(prev => ({
+        ...prev,
+        googleProfileScore: profileScore,
+        localSeoScore: localSeoScore,
+      }));
     } catch { alert("Failed to fetch place details"); }
     setFetchingPlaces(false);
   }

@@ -22,6 +22,32 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { generateSlug } = await import("@/lib/utils");
 
+  // Auto-calculate Google Business Profile scores from GBP data
+  let autoGoogleProfileScore = body.googleProfileScore ? Number(body.googleProfileScore) : null;
+  let autoLocalSeoScore = body.localSeoScore ? Number(body.localSeoScore) : null;
+  if (body.googleBusinessData && typeof body.googleBusinessData === "object") {
+    const gbp = body.googleBusinessData;
+    let profileScore = 0;
+    if (gbp.name) profileScore += 20;
+    if (gbp.address) profileScore += 20;
+    if (gbp.phone) profileScore += 15;
+    if (gbp.website) profileScore += 15;
+    if (gbp.reviewCount > 0) profileScore += 15;
+    if (gbp.photos && gbp.photos.length > 0) profileScore += 15;
+    autoGoogleProfileScore = profileScore;
+
+    let localSeoScore = 0;
+    if (gbp.name) localSeoScore += 30;
+    if (gbp.rating >= 4.0) localSeoScore += 20;
+    else if (gbp.rating >= 3.0) localSeoScore += 10;
+    if (gbp.reviewCount >= 10) localSeoScore += 15;
+    else if (gbp.reviewCount >= 1) localSeoScore += 5;
+    if (gbp.photos && gbp.photos.length >= 3) localSeoScore += 10;
+    if (gbp.openingHours) localSeoScore += 10;
+    if (gbp.types && gbp.types.length > 0) localSeoScore += 5;
+    autoLocalSeoScore = localSeoScore;
+  }
+
   const proposal = await db.proposal.create({
     data: {
       userId: (session.user as any).id,
@@ -51,8 +77,8 @@ export async function POST(request: NextRequest) {
       lighthouseAccessibility: body.lighthouseAccessibility ? Number(body.lighthouseAccessibility) : null,
       lighthouseSeo: body.lighthouseSeo ? Number(body.lighthouseSeo) : null,
       lighthouseBestPractices: body.lighthouseBestPractices ? Number(body.lighthouseBestPractices) : null,
-      googleProfileScore: body.googleProfileScore ? Number(body.googleProfileScore) : null,
-      localSeoScore: body.localSeoScore ? Number(body.localSeoScore) : null,
+      googleProfileScore: autoGoogleProfileScore,
+      localSeoScore: autoLocalSeoScore,
       localSeoGrid: body.localSeoGrid || undefined,
       googleBusinessData: body.googleBusinessData || undefined,
       shareSlug: generateSlug(),
