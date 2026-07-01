@@ -87,9 +87,12 @@ export async function PATCH(
     body.localSeoScore = localSeoScore;
   }
 
+  // Strip fields that aren't on the Proposal model
+  const { serviceIds, sectionIds, servicePricing, id: _id, userId: _userId, createdAt, updatedAt, ...proposalData } = body;
+
   const proposal = await db.proposal.update({
     where: { id },
-    data: body,
+    data: proposalData,
   });
 
   return Response.json(proposal);
