@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/utils";
+import { DEFAULT_ASSUMPTIONS } from "@/lib/revenue-engine";
 
 interface Assumption {
   type: string;
@@ -34,9 +35,12 @@ export default function RevenueOpportunity({
 
   const monthlyBaseline = avgCustomerSpend * customersPerDay * workingDaysPerMonth;
 
+  // Use custom assumptions if available, otherwise use defaults
+  const activeAssumptions = assumptions.length > 0 ? assumptions : DEFAULT_ASSUMPTIONS;
+
   const calcScenario = (key: "lowValue" | "expectedValue" | "highValue") => {
     let multiplier = 1;
-    assumptions.forEach((a) => {
+    activeAssumptions.forEach((a) => {
       multiplier *= 1 + a[key] / 100;
     });
     return Math.round(monthlyBaseline * (multiplier - 1));
@@ -51,14 +55,12 @@ export default function RevenueOpportunity({
     annual: Math.round(expected * 1.2 * 12),
   };
 
-  if (assumptions.length === 0 || monthlyBaseline === 0) {
+  if (monthlyBaseline === 0) {
     return (
       <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
         <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Revenue Opportunity</h2>
         <p className="text-[13px] text-on-surface-variant">
-          {monthlyBaseline === 0
-            ? "Set revenue baseline (average customer spend, customers per day) in the editor to see ROI projections."
-            : "Add revenue assumptions in the editor to see ROI projections."}
+          Set revenue baseline (average customer spend, customers per day) in the editor to see ROI projections.
         </p>
       </div>
     );
@@ -99,7 +101,35 @@ export default function RevenueOpportunity({
       <div className="bg-gradient-to-br from-[#004527] to-[#003019] rounded-2xl p-8 text-white mb-8">
         <p className="text-white/70 text-[13px] mb-1">Projected Monthly Revenue Uplift</p>
         <p className="text-4xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected, currency)}</p>
-        <p className="text-white/60 text-[12px] mt-1">Expected scenario based on your assumptions</p>
+        <p className="text-white/60 text-[12px] mt-1">Expected scenario based on industry benchmarks</p>
+      </div>
+
+      {/* Total ROI Opportunity */}
+      <div className="bg-white rounded-2xl border border-[#c3cdd8]/50 p-6 mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-[20px] text-[#004527]">trending_up</span>
+          <h3 className="text-[15px] font-bold text-on-surface font-[family-name:var(--font-display)]">Total ROI Opportunity</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-[#004527]/5 rounded-xl border border-[#004527]/10">
+            <p className="text-[11px] text-on-surface-variant mb-1">Conservative (Low)</p>
+            <p className="text-xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(low, currency)}</p>
+            <p className="text-[10px] text-on-surface-variant mt-1">/month</p>
+            <p className="text-[11px] font-semibold text-[#004527] mt-1">{formatCurrency(low * 12, currency)}/year</p>
+          </div>
+          <div className="text-center p-4 bg-[#004527] rounded-xl text-white">
+            <p className="text-[11px] text-white/70 mb-1">Expected</p>
+            <p className="text-xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(expected, currency)}</p>
+            <p className="text-[10px] text-white/60 mt-1">/month</p>
+            <p className="text-[11px] font-semibold text-white mt-1">{formatCurrency(expected * 12, currency)}/year</p>
+          </div>
+          <div className="text-center p-4 bg-[#004527]/5 rounded-xl border border-[#004527]/10">
+            <p className="text-[11px] text-on-surface-variant mb-1">Optimistic (High)</p>
+            <p className="text-xl font-bold text-on-surface font-[family-name:var(--font-display)]">{formatCurrency(high, currency)}</p>
+            <p className="text-[10px] text-on-surface-variant mt-1">/month</p>
+            <p className="text-[11px] font-semibold text-[#004527] mt-1">{formatCurrency(high * 12, currency)}/year</p>
+          </div>
+        </div>
       </div>
 
       {/* Cost of Doing Nothing */}
@@ -151,6 +181,9 @@ export default function RevenueOpportunity({
       <div className="bg-white rounded-xl border border-[#c3cdd8]/50 overflow-hidden">
         <div className="px-4 py-3 bg-surface border-b border-[#c3cdd8]/30">
           <h4 className="text-[13px] font-semibold text-on-surface">Revenue Uplift Assumptions</h4>
+          {assumptions.length === 0 && (
+            <p className="text-[11px] text-on-surface-variant">Using industry-standard default assumptions</p>
+          )}
         </div>
         <table className="w-full text-[13px]">
           <thead className="bg-surface">
@@ -162,7 +195,7 @@ export default function RevenueOpportunity({
             </tr>
           </thead>
           <tbody>
-            {assumptions.map((a, i) => (
+            {activeAssumptions.map((a, i) => (
               <tr key={i} className="border-t border-[#c3cdd8]/30">
                 <td className="px-4 py-3 text-on-surface">{a.label}</td>
                 <td className="px-4 py-3 text-center text-on-surface-variant">{a.lowValue}%</td>
@@ -175,13 +208,13 @@ export default function RevenueOpportunity({
             <tr className="border-t-2 border-[#004527]/20 bg-surface">
               <td className="px-4 py-3 font-semibold text-on-surface">Combined Multiplier</td>
               <td className="px-4 py-3 text-center font-semibold text-on-surface">
-                x{(assumptions.reduce((m, a) => m * (1 + a.lowValue / 100), 1)).toFixed(2)}
+                x{(activeAssumptions.reduce((m, a) => m * (1 + a.lowValue / 100), 1)).toFixed(2)}
               </td>
               <td className="px-4 py-3 text-center font-bold text-[#004527]">
-                x{(assumptions.reduce((m, a) => m * (1 + a.expectedValue / 100), 1)).toFixed(2)}
+                x{(activeAssumptions.reduce((m, a) => m * (1 + a.expectedValue / 100), 1)).toFixed(2)}
               </td>
               <td className="px-4 py-3 text-center font-semibold text-on-surface">
-                x{(assumptions.reduce((m, a) => m * (1 + a.highValue / 100), 1)).toFixed(2)}
+                x{(activeAssumptions.reduce((m, a) => m * (1 + a.highValue / 100), 1)).toFixed(2)}
               </td>
             </tr>
           </tbody>

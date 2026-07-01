@@ -18,19 +18,35 @@ import { formatCurrency } from "@/lib/utils";
 
 function ServiceROI({ service, currency }: { service: any; currency: string }) {
   const price = service.customPrice || service.packagePrice || 0;
-  const avgRevenueImpact = price * 3;
+  const monthlyROI = price * 2.5;
+  const yearlyROI = monthlyROI * 12;
+  const roiMultiple = price > 0 ? (yearlyROI / price).toFixed(1) : "0";
   return (
     <div className="p-4 bg-surface rounded-lg border border-[#c3cdd8]/30">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-[13px] font-semibold text-on-surface">{service.name}</h4>
-        <span className="text-[13px] font-bold text-[#004527]">{formatCurrency(price, currency)}</span>
+        <span className="text-[13px] font-bold text-[#004527]">{price > 0 ? formatCurrency(price, currency) : "Custom"}</span>
       </div>
       {service.outcomes && <p className="text-[12px] text-on-surface-variant mb-2">{service.outcomes}</p>}
-      <div className="flex items-center gap-4 text-[11px]">
-        <div className="flex items-center gap-1">
-          <span className="material-symbols-outlined text-[14px] text-[#15803d]">trending_up</span>
-          <span className="text-on-surface-variant">Est. ROI: <span className="font-semibold text-on-surface">{formatCurrency(avgRevenueImpact, currency)}/yr</span></span>
+      {price > 0 ? (
+        <div className="grid grid-cols-3 gap-3 mt-3">
+          <div className="text-center p-2 bg-white rounded-lg border border-[#c3cdd8]/30">
+            <p className="text-[10px] text-on-surface-variant">Monthly ROI</p>
+            <p className="text-[13px] font-bold text-[#004527]">{formatCurrency(monthlyROI, currency)}</p>
+          </div>
+          <div className="text-center p-2 bg-white rounded-lg border border-[#c3cdd8]/30">
+            <p className="text-[10px] text-on-surface-variant">Yearly ROI</p>
+            <p className="text-[13px] font-bold text-[#004527]">{formatCurrency(yearlyROI, currency)}</p>
+          </div>
+          <div className="text-center p-2 bg-[#004527]/5 rounded-lg border border-[#004527]/10">
+            <p className="text-[10px] text-on-surface-variant">ROI Multiple</p>
+            <p className="text-[13px] font-bold text-[#004527]">{roiMultiple}x</p>
+          </div>
         </div>
+      ) : (
+        <p className="text-[11px] text-on-surface-variant mt-2 italic">Set pricing in the editor to see ROI projections</p>
+      )}
+      <div className="flex items-center gap-4 text-[11px] mt-3">
         {service.timeline && (
           <div className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px] text-[#004527]">schedule</span>
@@ -202,9 +218,30 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
         {services.length > 0 && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Service ROI Breakdown</h2>
-            <div className="space-y-3">
+            <div className="space-y-3 mb-6">
               {services.map((s: any, i: number) => <ServiceROI key={i} service={s} currency={currency} />)}
             </div>
+            {/* Total Investment & ROI Summary */}
+            {totalPackagePrice > 0 && (
+              <div className="bg-gradient-to-br from-[#004527] to-[#003019] rounded-2xl p-6 text-white">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-white/70 text-[12px] mb-1">Total Service Investment</p>
+                    <p className="text-3xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(totalPackagePrice, currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/70 text-[12px] mb-1">Projected Yearly ROI</p>
+                    <p className="text-3xl font-bold font-[family-name:var(--font-display)]">{formatCurrency(totalPackagePrice * 2.5 * 12, currency)}</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/20 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-white/70">rocket_launch</span>
+                  <p className="text-[13px] text-white/80">
+                    For every {formatCurrency(1, currency)} invested, expect {formatCurrency(totalPackagePrice * 2.5 * 12 / totalPackagePrice, currency)} in return within 12 months
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
         <RevenueOpportunity

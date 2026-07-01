@@ -65,12 +65,14 @@ export default async function ProposalDetailPage({
             status={proposal.status}
             shareSlug={proposal.shareSlug}
           />
-          <Link href={`/proposals/${proposal.id}/edit`}>
-            <button className="px-3 py-1.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">edit</span>
-              Edit
-            </button>
-          </Link>
+          {proposal.status !== "complete" && (
+            <Link href={`/proposals/${proposal.id}/edit`}>
+              <button className="px-3 py-1.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">edit</span>
+                Edit
+              </button>
+            </Link>
+          )}
           <DeleteProposalButton proposalId={proposal.id} isAdmin={role === "admin"} isOwner={proposal.userId === userId} />
         </div>
 
@@ -121,9 +123,11 @@ export default async function ProposalDetailPage({
           )}
 
           {/* Pricing */}
-          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-            <ProposalPricingSection proposalId={proposal.id} currency={proposal.currency || "NPR"} />
-          </div>
+          {proposal.status !== "complete" && (
+            <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+              <ProposalPricingSection proposalId={proposal.id} currency={proposal.currency || "NPR"} />
+            </div>
+          )}
         </div>
       </div>
 

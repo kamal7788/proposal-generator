@@ -24,6 +24,7 @@ export default async function EditProposalPage({
   });
 
   if (!proposal) notFound();
+  if (proposal.status === "complete") redirect(`/proposals/${id}`);
 
   const services = await db.service.findMany({
     where: { isActive: true },
