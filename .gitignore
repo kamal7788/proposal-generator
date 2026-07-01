@@ -7,3 +7,6 @@ public/uploads/*
 !public/uploads/Main*
 *.log
 .DS_Store
+FIX-PROMPT.md
+SOURCE-OF-TRUTH.md
+tsconfig.tsbuildinfo
