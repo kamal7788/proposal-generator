@@ -22,6 +22,8 @@ export default async function ProposalPreviewPage({
       auditItems: { orderBy: { sortOrder: "asc" } },
       assumptions: true,
       assets: true,
+      pricingPackages: { orderBy: { sortOrder: "asc" } },
+      pricingAddons: { orderBy: { sortOrder: "asc" } },
     },
   });
 

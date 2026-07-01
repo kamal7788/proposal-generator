@@ -48,9 +48,6 @@ async function callOpenAI(apiKey: string, systemPrompt: string, userPrompt: stri
 }
 
 function buildBatchPrompt(prompts: { section: string; prompt: string }[]): string {
-  const sectionMap: Record<string, string> = {};
-  prompts.forEach(p => { sectionMap[p.section] = p.prompt; });
-
   let prompt = `Generate the following sections for a business proposal. Return a JSON object with section names as keys and the generated text as values.\n\n`;
 
   prompts.forEach(p => {
@@ -58,10 +55,26 @@ function buildBatchPrompt(prompts: { section: string; prompt: string }[]): strin
   });
 
   prompt += `Return a JSON object with these keys: ${prompts.map(p => `"${p.section}"`).join(", ")}.
-Each value should be the generated text for that section.
+Each value MUST be a plain text string (NOT a JSON object or array).
 IMPORTANT: Return ONLY the JSON object, no markdown, no code blocks.`;
 
   return prompt;
+}
+
+function sanitizeGeneratedContent(parsed: Record<string, any>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value === "string") {
+      result[key] = value;
+    } else if (typeof value === "object" && value !== null) {
+      // If it's an object (like serviceExplanations), skip it or stringify
+      // Don't assign objects to string fields
+      result[key] = JSON.stringify(value);
+    } else {
+      result[key] = String(value || "");
+    }
+  }
+  return result;
 }
 
 function extractJsonFromResponse(content: string): Record<string, string> {
@@ -140,10 +153,11 @@ export async function POST(
       try {
         const response = await callOpenAI(apiKey, systemPrompt, batchPrompt, batch.maxTokens);
         const parsed = extractJsonFromResponse(response);
+        const sanitized = sanitizeGeneratedContent(parsed);
 
         batch.sections.forEach(section => {
-          if (parsed[section]) {
-            (generatedContent as any)[section] = parsed[section];
+          if (sanitized[section]) {
+            (generatedContent as any)[section] = sanitized[section];
           }
         });
       } catch (error) {

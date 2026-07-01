@@ -10,6 +10,7 @@ interface PricingPackage {
   price: number;
   billingPeriod: string;
   isDefault: boolean;
+  features: string[];
 }
 
 interface PricingAddon {
@@ -22,15 +23,16 @@ interface PricingAddon {
 
 interface PricingManagerProps {
   proposalId: string;
+  currency?: string;
 }
 
 const DEFAULT_PACKAGES: PricingPackage[] = [
-  { name: "Starter", description: "Essential growth foundation", price: 0, billingPeriod: "monthly", isDefault: false },
-  { name: "Growth", description: "Accelerated scaling package", price: 0, billingPeriod: "monthly", isDefault: true },
-  { name: "Scale", description: "Full-market dominance", price: 0, billingPeriod: "monthly", isDefault: false },
+  { name: "Starter", description: "Essential growth foundation", price: 0, billingPeriod: "one-time", isDefault: false, features: [] },
+  { name: "Growth", description: "Accelerated scaling package", price: 0, billingPeriod: "one-time", isDefault: true, features: [] },
+  { name: "Scale", description: "Full-market dominance", price: 0, billingPeriod: "one-time", isDefault: false, features: [] },
 ];
 
-export default function PricingManager({ proposalId }: PricingManagerProps) {
+export default function PricingManager({ proposalId, currency = "NPR" }: PricingManagerProps) {
   const [packages, setPackages] = useState<PricingPackage[]>(DEFAULT_PACKAGES);
   const [addons, setAddons] = useState<PricingAddon[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,12 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
       const res = await fetch(`/api/proposals/${proposalId}/pricing`);
       if (res.ok) {
         const data = await res.json();
-        if (data.packages?.length > 0) setPackages(data.packages);
+        if (data.packages?.length > 0) {
+          setPackages(data.packages.map((p: any) => ({
+            ...p,
+            features: Array.isArray(p.includedServiceIds) ? p.includedServiceIds : [],
+          })));
+        }
         if (data.addons?.length > 0) setAddons(data.addons);
       }
     } catch {}
@@ -53,6 +60,26 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
 
   function updatePackage(index: number, field: keyof PricingPackage, value: any) {
     setPackages(prev => prev.map((pkg, i) => i === index ? { ...pkg, [field]: value } : pkg));
+  }
+
+  function addFeatureToPackage(pkgIndex: number) {
+    setPackages(prev => prev.map((pkg, i) => i === pkgIndex ? { ...pkg, features: [...pkg.features, ""] } : pkg));
+  }
+
+  function updateFeature(pkgIndex: number, featureIndex: number, value: string) {
+    setPackages(prev => prev.map((pkg, i) => {
+      if (i !== pkgIndex) return pkg;
+      const features = [...pkg.features];
+      features[featureIndex] = value;
+      return { ...pkg, features };
+    }));
+  }
+
+  function removeFeature(pkgIndex: number, featureIndex: number) {
+    setPackages(prev => prev.map((pkg, i) => {
+      if (i !== pkgIndex) return pkg;
+      return { ...pkg, features: pkg.features.filter((_, fi) => fi !== featureIndex) };
+    }));
   }
 
   function updateAddon(index: number, field: keyof PricingAddon, value: any) {
@@ -70,23 +97,18 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
   async function savePricing() {
     setLoading(true);
     try {
-      for (const pkg of packages) {
-        await fetch(`/api/proposals/${proposalId}/pricing`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "package", ...pkg }),
-        });
+      const res = await fetch(`/api/proposals/${proposalId}/pricing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packages, addons }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        alert("Failed to save pricing");
       }
-      for (const addon of addons) {
-        await fetch(`/api/proposals/${proposalId}/pricing`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "addon", ...addon }),
-        });
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {}
+    } catch { alert("Failed to save pricing"); }
     setLoading(false);
   }
 
@@ -95,7 +117,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-[18px] text-[#004527]">payments</span>
-          <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">3-Tier Pricing</h3>
+          <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Pricing Packages</h3>
         </div>
         <Button size="sm" loading={loading} onClick={savePricing}>
           {saved ? "Saved!" : "Save Pricing"}
@@ -115,7 +137,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
               <button
                 type="button"
                 onClick={() => updatePackage(i, "isDefault", !pkg.isDefault)}
-                className={`text-[11px] px-2 py-0.5 rounded-full ${pkg.isDefault ? "bg-[#004527] text-white" : "bg-surface text-on-surface-variant"}`}
+                className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${pkg.isDefault ? "bg-[#004527] text-white" : "bg-surface text-on-surface-variant"}`}
               >
                 {pkg.isDefault ? "Default" : "Set Default"}
               </button>
@@ -127,8 +149,8 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
               rows={2}
               placeholder="Package description"
             />
-            <div className="flex items-end gap-1">
-              <span className="text-[14px] font-medium text-[#004527] pb-1">NPR</span>
+            <div className="flex items-end gap-1 mb-3">
+              <span className="text-[14px] font-medium text-[#004527] pb-1">{currency}</span>
               <input
                 type="number"
                 value={pkg.price || ""}
@@ -136,16 +158,37 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
                 className="text-[24px] font-bold text-[#004527] bg-transparent border-none outline-none w-full"
                 placeholder="0"
               />
-              <span className="text-[12px] text-on-surface-variant pb-1">/{pkg.billingPeriod === "monthly" ? "mo" : "yr"}</span>
             </div>
+
+            {/* Features */}
+            <div className="space-y-1.5 mb-3">
+              {pkg.features.map((feature, fi) => (
+                <div key={fi} className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px] text-[#004527]">check</span>
+                  <input
+                    value={feature}
+                    onChange={e => updateFeature(i, fi, e.target.value)}
+                    className="flex-1 text-[11px] bg-transparent border-none outline-none"
+                    placeholder="Feature"
+                  />
+                  <button type="button" onClick={() => removeFeature(i, fi)} className="text-on-surface-variant hover:text-red-500">
+                    <span className="material-symbols-outlined text-[12px]">close</span>
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addFeatureToPackage(i)} className="text-[11px] text-[#004527] hover:underline flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">add</span> Add feature
+              </button>
+            </div>
+
             <select
               value={pkg.billingPeriod}
               onChange={e => updatePackage(i, "billingPeriod", e.target.value)}
-              className="mt-2 w-full text-[11px] border border-[#c3cdd8] rounded px-2 py-1 bg-white"
+              className="w-full text-[11px] border border-[#c3cdd8] rounded px-2 py-1 bg-white"
             >
+              <option value="one-time">One-time</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
-              <option value="one-time">One-time</option>
             </select>
           </div>
         ))}
@@ -157,7 +200,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
           <Button variant="outline" size="sm" onClick={addAddon}>Add Add-on</Button>
         </div>
         {addons.length === 0 ? (
-          <p className="text-[12px] text-on-surface-variant">No add-ons configured. Click &quot;Add Add-on&quot; to create one.</p>
+          <p className="text-[12px] text-on-surface-variant">No add-ons configured.</p>
         ) : (
           <div className="space-y-2">
             {addons.map((addon, i) => (
@@ -168,7 +211,7 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
                   className="flex-1 text-[13px] font-medium bg-transparent border-none outline-none"
                   placeholder="Add-on name"
                 />
-                <span className="text-[12px] text-on-surface-variant">NPR</span>
+                <span className="text-[12px] text-on-surface-variant">{currency}</span>
                 <input
                   type="number"
                   value={addon.price || ""}
@@ -176,15 +219,6 @@ export default function PricingManager({ proposalId }: PricingManagerProps) {
                   className="w-24 text-[13px] font-medium text-[#004527] bg-transparent border-none outline-none text-right"
                   placeholder="Price"
                 />
-                <select
-                  value={addon.billingPeriod}
-                  onChange={e => updateAddon(i, "billingPeriod", e.target.value)}
-                  className="text-[11px] border border-[#c3cdd8] rounded px-2 py-1 bg-white"
-                >
-                  <option value="monthly">/mo</option>
-                  <option value="yearly">/yr</option>
-                  <option value="one-time">once</option>
-                </select>
                 <button onClick={() => removeAddon(i)} className="text-on-surface-variant hover:text-red-500">
                   <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ProposalActions from "@/components/proposals/ProposalActions";
 import DeleteProposalButton from "@/components/proposals/DeleteProposalButton";
+import ProposalPricingSection from "@/components/proposals/ProposalPricingSection";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +119,11 @@ export default async function ProposalDetailPage({
               <p className="text-[12px] text-on-surface-variant whitespace-pre-wrap">{proposal.discoveryNotes}</p>
             </div>
           )}
+
+          {/* Pricing */}
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <ProposalPricingSection proposalId={proposal.id} currency={proposal.currency || "NPR"} />
+          </div>
         </div>
       </div>
 

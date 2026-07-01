@@ -44,6 +44,17 @@ function ServiceROI({ service, currency }: { service: any; currency: string }) {
 
 export default function ProposalRenderer({ proposal }: { proposal: any }) {
   const generated = (proposal?.generatedContent as any) || {};
+  // Safety: ensure all generated content fields are strings, not objects
+  const safeGenerated: Record<string, string> = {};
+  for (const [key, value] of Object.entries(generated)) {
+    if (typeof value === "string") {
+      safeGenerated[key] = value;
+    } else if (typeof value === "object" && value !== null) {
+      safeGenerated[key] = "";
+    } else {
+      safeGenerated[key] = String(value || "");
+    }
+  }
   const services = (proposal?.services || []).map((ps: any) => ({ ...ps.service, customPrice: ps.customPrice, packagePrice: ps.packagePrice, packageName: ps.packageName, notes: ps.notes }));
   const currency = proposal?.currency || "NPR";
   const googleData = proposal?.googleBusinessData as any;
@@ -76,36 +87,36 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
       <CoverHero businessName={proposal?.businessName} contactName={proposal?.contactName} />
 
       {/* Cover Letter */}
-      {generated.coverLetter && (
+      {safeGenerated.coverLetter && (
         <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30">
           <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Cover Letter</h2>
-          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.coverLetter}</p>
+          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.coverLetter}</p>
         </div>
       )}
 
       {/* 2. Executive Summary */}
       <div id="executive-summary">
-        {generated.executiveSummary && <ExecutiveSummary content={generated.executiveSummary} />}
+        {safeGenerated.executiveSummary && <ExecutiveSummary content={safeGenerated.executiveSummary} />}
       </div>
 
       {/* 3. About BrandAid + Why BrandAid + Our Process */}
       <div id="about-us">
-        {generated.aboutBrandAid && (
+        {safeGenerated.aboutBrandAid && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">About BrandAid</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.aboutBrandAid}</p>
+            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.aboutBrandAid}</p>
           </div>
         )}
-        {generated.whyBrandAid && (
+        {safeGenerated.whyBrandAid && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30 bg-surface">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Why BrandAid</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.whyBrandAid}</p>
+            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.whyBrandAid}</p>
           </div>
         )}
-        {generated.ourProcess && (
+        {safeGenerated.ourProcess && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Our Process</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.ourProcess}</p>
+            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.ourProcess}</p>
           </div>
         )}
         <WhyBrandAid />
@@ -173,19 +184,19 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
       </div>
 
       {/* Recommendations */}
-      {generated.recommendations && (
+      {safeGenerated.recommendations && (
         <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30 bg-surface">
           <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">What We Recommend and Why</h2>
-          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.recommendations}</p>
+          <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.recommendations}</p>
         </div>
       )}
 
       {/* 13. Services + ROI per service */}
       <div id="services">
-        {generated.servicesNarrative && (
+        {safeGenerated.servicesNarrative && (
           <div className="py-16 px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Recommended Services</h2>
-            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px] mb-8">{generated.servicesNarrative}</p>
+            <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px] mb-8">{safeGenerated.servicesNarrative}</p>
           </div>
         )}
         {services.length > 0 && (
@@ -210,32 +221,68 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
 
       {/* 14. Pricing / Package */}
       <div id="pricing">
-        {totalPackagePrice > 0 && (
+        {(proposal?.pricingPackages?.length > 0 || totalPackagePrice > 0) && (
           <div className="py-16 px-4 sm:px-8 border-b border-[#c3cdd8]/30">
             <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Investment Summary</h2>
-            <div className="bg-white rounded-xl border border-[#c3cdd8]/50 p-6">
-              <div className="space-y-3">
-                {services.map((s: any, i: number) => {
-                  const price = s.customPrice || s.packagePrice || 0;
-                  if (!price) return null;
-                  return (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-[#c3cdd8]/30 last:border-0">
-                      <div>
-                        <span className="text-[13px] font-medium text-on-surface">{s.name}</span>
-                        {s.packageName && <span className="text-[11px] text-on-surface-variant ml-2">({s.packageName})</span>}
-                      </div>
-                      <span className="text-[13px] font-semibold text-on-surface">{formatCurrency(price, currency)}</span>
+            
+            {/* Pricing Packages with Features */}
+            {proposal?.pricingPackages?.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {proposal.pricingPackages.map((pkg: any, i: number) => (
+                  <div key={i} className={`rounded-xl border p-6 ${pkg.isDefault ? "border-[#004527] bg-[#004527]/5 shadow-lg" : "border-[#c3cdd8]/50 bg-white"}`}>
+                    {pkg.isDefault && (
+                      <div className="text-[11px] font-semibold text-[#004527] mb-2 uppercase tracking-wide">Recommended</div>
+                    )}
+                    <h3 className="text-lg font-bold text-on-surface mb-1 font-[family-name:var(--font-display)]">{pkg.name}</h3>
+                    <p className="text-[12px] text-on-surface-variant mb-4">{pkg.description}</p>
+                    <div className="mb-4">
+                      <span className="text-[28px] font-bold text-[#004527] font-[family-name:var(--font-display)]">{formatCurrency(pkg.price, currency)}</span>
+                      {pkg.billingPeriod !== "one-time" && (
+                        <span className="text-[12px] text-on-surface-variant">/{pkg.billingPeriod}</span>
+                      )}
                     </div>
-                  );
-                })}
+                    {pkg.features?.length > 0 && (
+                      <ul className="space-y-2">
+                        {pkg.features.map((feature: string, fi: number) => (
+                          <li key={fi} className="flex items-start gap-2 text-[12px]">
+                            <span className="material-symbols-outlined text-[14px] text-[#004527] mt-0.5">check</span>
+                            <span className="text-on-surface-variant">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center justify-between mt-4 pt-4 border-t-2 border-[#004527]">
-                <span className="text-[15px] font-bold text-on-surface font-[family-name:var(--font-display)]">Total Package Investment</span>
-                <span className="text-[20px] font-bold text-[#004527] font-[family-name:var(--font-display)]">{formatCurrency(totalPackagePrice, currency)}</span>
+            )}
+
+            {/* Service-level pricing breakdown */}
+            {totalPackagePrice > 0 && (
+              <div className="bg-white rounded-xl border border-[#c3cdd8]/50 p-6">
+                <div className="space-y-3">
+                  {services.map((s: any, i: number) => {
+                    const price = s.customPrice || s.packagePrice || 0;
+                    if (!price) return null;
+                    return (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-[#c3cdd8]/30 last:border-0">
+                        <div>
+                          <span className="text-[13px] font-medium text-on-surface">{s.name}</span>
+                          {s.packageName && <span className="text-[11px] text-on-surface-variant ml-2">({s.packageName})</span>}
+                        </div>
+                        <span className="text-[13px] font-semibold text-on-surface">{formatCurrency(price, currency)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-4 pt-4 border-t-2 border-[#004527]">
+                  <span className="text-[15px] font-bold text-on-surface font-[family-name:var(--font-display)]">Total Package Investment</span>
+                  <span className="text-[20px] font-bold text-[#004527] font-[family-name:var(--font-display)]">{formatCurrency(totalPackagePrice, currency)}</span>
+                </div>
               </div>
-            </div>
-            {generated.pricingNarrative && (
-              <p className="text-on-surface-variant leading-relaxed text-[14px] mt-6">{generated.pricingNarrative}</p>
+            )}
+
+            {safeGenerated.pricingNarrative && (
+              <p className="text-on-surface-variant leading-relaxed text-[14px] mt-6">{safeGenerated.pricingNarrative}</p>
             )}
             <p className="text-[11px] text-on-surface-variant/60 mt-4 italic">
               * All prices are exclusive of applicable taxes. ROI projections are estimates based on industry research and assumed improvements. Actual results may vary.
@@ -245,15 +292,15 @@ export default function ProposalRenderer({ proposal }: { proposal: any }) {
       </div>
 
       {/* 15. FAQ */}
-      {generated.faq && (
+      {safeGenerated.faq && (
         <div id="faq" className="py-16 px-8 border-b border-[#c3cdd8]/30">
           <h2 className="text-2xl font-bold text-on-surface mb-6 font-[family-name:var(--font-display)]">Frequently Asked Questions</h2>
-          <div className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{generated.faq}</div>
+          <div className="text-on-surface-variant leading-relaxed whitespace-pre-wrap text-[15px]">{safeGenerated.faq}</div>
         </div>
       )}
 
       {/* 16. Next Steps */}
-      {generated.nextSteps && <NextSteps content={generated.nextSteps} />}
+      {safeGenerated.nextSteps && <NextSteps content={safeGenerated.nextSteps} />}
 
       {/* Footer */}
       <div className="bg-[#004527] text-white py-12 px-8 text-center">

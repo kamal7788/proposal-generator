@@ -39,19 +39,44 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { type, ...data } = body;
+  const { packages, addons } = body;
 
-  if (type === "package") {
-    const pkg = await db.pricingPackage.create({
-      data: { ...data, proposalId: id },
-    });
-    return Response.json(pkg);
-  } else if (type === "addon") {
-    const addon = await db.pricingAddon.create({
-      data: { ...data, proposalId: id },
-    });
-    return Response.json(addon);
+  // Delete existing and recreate (simple upsert strategy)
+  if (packages) {
+    await db.pricingPackage.deleteMany({ where: { proposalId: id } });
+    for (let i = 0; i < packages.length; i++) {
+      const pkg = packages[i];
+      await db.pricingPackage.create({
+        data: {
+          proposalId: id,
+          name: pkg.name || "",
+          description: pkg.description || "",
+          price: Number(pkg.price) || 0,
+          billingPeriod: pkg.billingPeriod || "one-time",
+          includedServiceIds: pkg.features || [],
+          isDefault: pkg.isDefault || false,
+          sortOrder: i,
+        },
+      });
+    }
   }
 
-  return Response.json({ error: "Invalid type" }, { status: 400 });
+  if (addons) {
+    await db.pricingAddon.deleteMany({ where: { proposalId: id } });
+    for (let i = 0; i < addons.length; i++) {
+      const addon = addons[i];
+      await db.pricingAddon.create({
+        data: {
+          proposalId: id,
+          name: addon.name || "",
+          description: addon.description || "",
+          price: Number(addon.price) || 0,
+          billingPeriod: addon.billingPeriod || "monthly",
+          sortOrder: i,
+        },
+      });
+    }
+  }
+
+  return Response.json({ success: true });
 }
