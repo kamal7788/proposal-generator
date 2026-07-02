@@ -44,13 +44,20 @@ export async function PATCH(
 
   const body = await request.json();
 
-  const scoreFields = ["websiteSpeedScore", "lighthousePerformance", "lighthouseAccessibility", "lighthouseSeo", "lighthouseBestPractices", "lighthouseAgenticBrowsing", "googleProfileScore", "localSeoScore"];
+  const scoreFields = ["websiteSpeedScore", "lighthousePerformance", "lighthouseAccessibility", "lighthouseSeo", "lighthouseBestPractices", "googleProfileScore", "localSeoScore"];
   for (const field of scoreFields) {
     if (body[field] !== undefined && body[field] !== "" && body[field] !== null) {
       body[field] = Number(body[field]);
     } else {
       body[field] = null;
     }
+  }
+
+  // Agentic browsing is a string (pass ratio like "3/5"), not a number
+  if (body.lighthouseAgenticBrowsing !== undefined && body.lighthouseAgenticBrowsing !== "") {
+    body.lighthouseAgenticBrowsing = String(body.lighthouseAgenticBrowsing);
+  } else {
+    body.lighthouseAgenticBrowsing = null;
   }
 
   // Handle revenue baseline fields

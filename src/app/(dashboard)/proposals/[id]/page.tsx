@@ -76,6 +76,7 @@ export default async function ProposalDetailPage({
             proposalId={proposal.id}
             status={proposal.status}
             shareSlug={proposal.shareSlug}
+            hasGeneratedContent={!!proposal.generatedContent}
           />
           {proposal.status !== "complete" && (
             <Link href={`/proposals/${proposal.id}/edit`}>
@@ -135,26 +136,32 @@ export default async function ProposalDetailPage({
           )}
 
           {/* Pricing */}
-          {proposal.status !== "complete" && (
-            <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-              <ProposalPricingSection proposalId={proposal.id} currency={proposal.currency || "NPR"} />
-              <DiscountCalculation
-                proposalId={proposal.id}
-                currency={proposal.currency || "NPR"}
-                services={proposal.services.map(ps => ({
-                  id: ps.service.id,
-                  name: ps.service.name,
-                  pricingPackages: ps.service.pricingPackages,
-                }))}
-                packages={(proposal.pricingPackages || []).map((p: any) => ({
-                  name: p.name,
-                  price: p.price,
-                  billingPeriod: p.billingPeriod,
-                  isDefault: p.isDefault,
-                }))}
-              />
-            </div>
-          )}
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <ProposalPricingSection
+              proposalId={proposal.id}
+              currency={proposal.currency || "NPR"}
+              services={proposal.services.map(ps => ({
+                id: ps.service.id,
+                name: ps.service.name,
+                pricingPackages: ps.service.pricingPackages,
+              }))}
+            />
+            <DiscountCalculation
+              proposalId={proposal.id}
+              currency={proposal.currency || "NPR"}
+              services={proposal.services.map(ps => ({
+                id: ps.service.id,
+                name: ps.service.name,
+                pricingPackages: ps.service.pricingPackages,
+              }))}
+              packages={(proposal.pricingPackages || []).map((p: any) => ({
+                name: p.name,
+                price: p.price,
+                billingPeriod: p.billingPeriod,
+                isDefault: p.isDefault,
+              }))}
+            />
+          </div>
         </div>
       </div>
 
@@ -194,19 +201,28 @@ export default async function ProposalDetailPage({
             </div>
           </div>
 
-          <Link href={`/proposals/${proposal.id}/preview`} className="mt-4 block">
-            <button className="w-full py-2.5 rounded-lg bg-[#004527] text-white text-[13px] font-medium hover:bg-[#006B3F] transition-colors flex items-center justify-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-              View Microsite
-            </button>
-          </Link>
+          {proposal.generatedContent ? (
+            <>
+              <Link href={`/proposals/${proposal.id}/preview`} className="mt-4 block">
+                <button className="w-full py-2.5 rounded-lg bg-[#004527] text-white text-[13px] font-medium hover:bg-[#006B3F] transition-colors flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                  View Microsite
+                </button>
+              </Link>
 
-          <Link href={`/p/${proposal.shareSlug}`} className="mt-2 block" target="_blank">
-            <button className="w-full py-2.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center justify-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">share</span>
-              Share Public Link
-            </button>
-          </Link>
+              <Link href={`/p/${proposal.shareSlug}`} className="mt-2 block" target="_blank">
+                <button className="w-full py-2.5 rounded-lg border border-[#c3cdd8] text-[13px] font-medium text-on-surface-variant hover:bg-surface transition-colors flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">share</span>
+                  Share Public Link
+                </button>
+              </Link>
+            </>
+          ) : (
+            <div className="mt-4 p-4 bg-surface rounded-lg border border-[#c3cdd8]/30 text-center">
+              <span className="material-symbols-outlined text-[20px] text-on-surface-variant mb-1 block">lock</span>
+              <p className="text-[12px] text-on-surface-variant">Click <strong>Generate Proposal</strong> to enable microsite and sharing</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

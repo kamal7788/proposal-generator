@@ -6,7 +6,7 @@ interface WebsitePerformanceProps {
     lighthouseAccessibility?: number | null;
     lighthouseSeo?: number | null;
     lighthouseBestPractices?: number | null;
-    lighthouseAgenticBrowsing?: number | null;
+    lighthouseAgenticBrowsing?: string | number | null;
     websiteSpeedScore?: number | null;
     websiteUrl?: string | null;
     hasWebsite?: boolean | null;
@@ -79,7 +79,7 @@ export default function WebsitePerformance({ proposal }: WebsitePerformanceProps
   const accessibility = proposal.lighthouseAccessibility || 0;
   const seo = proposal.lighthouseSeo || 0;
   const bestPractices = proposal.lighthouseBestPractices || 0;
-  const agenticBrowsing = proposal.lighthouseAgenticBrowsing || 0;
+  const agenticBrowsing = proposal.lighthouseAgenticBrowsing;
   const desktopPerf = proposal.desktopScores?.performance || Math.min(100, performance + 15);
 
   const overallScore = Math.round((performance + accessibility + seo + bestPractices) / 4);
@@ -160,8 +160,20 @@ export default function WebsitePerformance({ proposal }: WebsitePerformanceProps
             <ScoreRing score={accessibility} label="Accessibility" size="lg" />
             <ScoreRing score={bestPractices} label="Best Practices" size="lg" />
             <ScoreRing score={seo} label="SEO" size="lg" />
-            {agenticBrowsing > 0 && <ScoreRing score={agenticBrowsing} label="Agentic Browsing" size="lg" />}
           </div>
+          {agenticBrowsing && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[18px] text-[#004527]">smart_toy</span>
+                <h4 className="text-sm font-bold text-[#121d26]">Agentic Browsing Readiness</h4>
+              </div>
+              <p className="text-[13px] text-gray-600 mb-2">Measures how well your site works for AI agents (pass ratio of checks).</p>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold text-[#004527]">{agenticBrowsing}</span>
+                <span className="text-[12px] text-gray-500">checks passed</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

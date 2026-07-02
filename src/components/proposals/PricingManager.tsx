@@ -24,16 +24,49 @@ interface PricingAddon {
 interface PricingManagerProps {
   proposalId: string;
   currency?: string;
+  services?: { id: string; name: string; pricingPackages: any }[];
 }
 
-const DEFAULT_PACKAGES: PricingPackage[] = [
-  { name: "Starter", description: "Essential growth foundation", price: 0, billingPeriod: "one-time", isDefault: false, features: [] },
-  { name: "Growth", description: "Accelerated scaling package", price: 0, billingPeriod: "one-time", isDefault: true, features: [] },
-  { name: "Scale", description: "Full-market dominance", price: 0, billingPeriod: "one-time", isDefault: false, features: [] },
-];
+function getDefaultPackages(services?: { id: string; name: string; pricingPackages: any }[]): PricingPackage[] {
+  // If services have pricing tiers, use them to create default packages
+  if (services && services.length > 0) {
+    const tierMap: Record<string, { price: number; features: string[] }> = {};
 
-export default function PricingManager({ proposalId, currency = "NPR" }: PricingManagerProps) {
-  const [packages, setPackages] = useState<PricingPackage[]>(DEFAULT_PACKAGES);
+    for (const service of services) {
+      if (!service.pricingPackages || !Array.isArray(service.pricingPackages)) continue;
+      for (const tier of service.pricingPackages) {
+        const name = tier.name || "Tier";
+        if (!tierMap[name]) tierMap[name] = { price: 0, features: [] };
+        tierMap[name].price += tier.monthlyPrice || 0;
+        if (tier.features?.length) {
+          tierMap[name].features.push(`${service.name}: ${tier.features.join(", ")}`);
+        }
+      }
+    }
+
+    const tierNames = Object.keys(tierMap);
+    if (tierNames.length > 0) {
+      return tierNames.map((name, i) => ({
+        name,
+        description: name === "Growth" ? "Accelerated scaling package" : name === "Scale" ? "Full-market dominance" : "Essential growth foundation",
+        price: tierMap[name].price,
+        billingPeriod: "monthly",
+        isDefault: name === "Growth",
+        features: tierMap[name].features,
+      }));
+    }
+  }
+
+  // Fallback defaults
+  return [
+    { name: "Starter", description: "Essential growth foundation", price: 0, billingPeriod: "monthly", isDefault: false, features: [] },
+    { name: "Growth", description: "Accelerated scaling package", price: 0, billingPeriod: "monthly", isDefault: true, features: [] },
+    { name: "Scale", description: "Full-market dominance", price: 0, billingPeriod: "monthly", isDefault: false, features: [] },
+  ];
+}
+
+export default function PricingManager({ proposalId, currency = "NPR", services }: PricingManagerProps) {
+  const [packages, setPackages] = useState<PricingPackage[]>(() => getDefaultPackages(services));
   const [addons, setAddons] = useState<PricingAddon[]>([]);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -53,7 +86,6 @@ export default function PricingManager({ proposalId, currency = "NPR" }: Pricing
             features: Array.isArray(p.includedServiceIds) ? p.includedServiceIds : [],
           })));
         }
-        if (data.addons?.length > 0) setAddons(data.addons);
       }
     } catch {}
   }
@@ -82,16 +114,8 @@ export default function PricingManager({ proposalId, currency = "NPR" }: Pricing
     }));
   }
 
-  function updateAddon(index: number, field: keyof PricingAddon, value: any) {
-    setAddons(prev => prev.map((addon, i) => i === index ? { ...addon, [field]: value } : addon));
-  }
-
-  function addAddon() {
-    setAddons(prev => [...prev, { name: "", description: "", price: 0, billingPeriod: "monthly" }]);
-  }
-
-  function removeAddon(index: number) {
-    setAddons(prev => prev.filter((_, i) => i !== index));
+  function setRecommended(index: number) {
+    setPackages(prev => prev.map((pkg, i) => ({ ...pkg, isDefault: i === index })));
   }
 
   async function savePricing() {
@@ -136,10 +160,10 @@ export default function PricingManager({ proposalId, currency = "NPR" }: Pricing
               />
               <button
                 type="button"
-                onClick={() => updatePackage(i, "isDefault", !pkg.isDefault)}
-                className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${pkg.isDefault ? "bg-[#004527] text-white" : "bg-surface text-on-surface-variant"}`}
+                onClick={() => setRecommended(i)}
+                className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${pkg.isDefault ? "bg-[#004527] text-white" : "bg-surface text-on-surface-variant hover:bg-[#004527]/10"}`}
               >
-                {pkg.isDefault ? "Default" : "Set Default"}
+                {pkg.isDefault ? "Recommended" : "Set Recommended"}
               </button>
             </div>
             <textarea
@@ -186,46 +210,12 @@ export default function PricingManager({ proposalId, currency = "NPR" }: Pricing
               onChange={e => updatePackage(i, "billingPeriod", e.target.value)}
               className="w-full text-[11px] border border-[#c3cdd8] rounded px-2 py-1 bg-white"
             >
-              <option value="one-time">One-time</option>
               <option value="monthly">Monthly</option>
+              <option value="one-time">One-time</option>
               <option value="yearly">Yearly</option>
             </select>
           </div>
         ))}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-[13px] font-semibold text-on-surface">Add-ons</h4>
-          <Button variant="outline" size="sm" onClick={addAddon}>Add Add-on</Button>
-        </div>
-        {addons.length === 0 ? (
-          <p className="text-[12px] text-on-surface-variant">No add-ons configured.</p>
-        ) : (
-          <div className="space-y-2">
-            {addons.map((addon, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-[#c3cdd8]/50">
-                <input
-                  value={addon.name}
-                  onChange={e => updateAddon(i, "name", e.target.value)}
-                  className="flex-1 text-[13px] font-medium bg-transparent border-none outline-none"
-                  placeholder="Add-on name"
-                />
-                <span className="text-[12px] text-on-surface-variant">{currency}</span>
-                <input
-                  type="number"
-                  value={addon.price || ""}
-                  onChange={e => updateAddon(i, "price", Number(e.target.value))}
-                  className="w-24 text-[13px] font-medium text-[#004527] bg-transparent border-none outline-none text-right"
-                  placeholder="Price"
-                />
-                <button onClick={() => removeAddon(i)} className="text-on-surface-variant hover:text-red-500">
-                  <span className="material-symbols-outlined text-[16px]">close</span>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -45,6 +45,20 @@ const INDUSTRIES = [
 
 const TABS = ["Business Info", "Online Presence", "Assessment", "Services", "Sections"];
 
+function extractPlaceFromMapsUrl(url: string): string | null {
+  try {
+    if (url.includes("/maps/place/")) {
+      const match = url.match(/\/maps\/place\/([^/@]+)/);
+      if (match) return decodeURIComponent(match[1].replace(/\+/g, " "));
+    }
+    if (url.includes("/maps/search/")) {
+      const match = url.match(/\/maps\/search\/([^/@]+)/);
+      if (match) return decodeURIComponent(match[1].replace(/\+/g, " "));
+    }
+  } catch {}
+  return null;
+}
+
 export default function ProposalForm({ services, sections, onSubmit, initialData, isEdit }: ProposalFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -93,9 +107,10 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
   const [fetchingScores, setFetchingScores] = useState(false);
   const [fetchingPlaces, setFetchingPlaces] = useState(false);
   const [assessmentFetched, setAssessmentFetched] = useState(false);
-  const [placesResults, setPlacesResults] = useState<any[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<any>(initialData?.googleBusinessData || null);
   const [hasWebsite, setHasWebsite] = useState(initialData?.hasWebsite !== false);
+  const [fetchingMaps, setFetchingMaps] = useState(false);
+  const [mapsFetched, setMapsFetched] = useState(false);
 
   const autoFetchAssessment = useCallback(async () => {
     if (assessmentFetched) return;
@@ -126,33 +141,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
       } catch {}
       setFetchingScores(false);
     }
-
-    if (form.businessName && !selectedPlace) {
-      setFetchingPlaces(true);
-      try {
-        const res = await fetch("/api/google-places", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: `${form.businessName} ${form.address}` }),
-        });
-        const data = await res.json();
-        if (!data.error && data.results?.length > 0) {
-          setPlacesResults(data.results);
-          const detailRes = await fetch("/api/google-places", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ placeId: data.results[0].placeId }),
-          });
-          const detail = await detailRes.json();
-          if (!detail.error) {
-            setSelectedPlace(detail);
-            setForm(prev => ({ ...prev, googleProfileScore: detail.totalScore || "" }));
-          }
-        }
-      } catch {}
-      setFetchingPlaces(false);
-    }
-  }, [form.websiteUrl, form.businessName, form.address, form.lighthousePerformance, selectedPlace, assessmentFetched]);
+  }, [form.websiteUrl, form.lighthousePerformance, hasWebsite, assessmentFetched]);
 
   useEffect(() => {
     if (activeTab === 2) autoFetchAssessment();
@@ -230,67 +219,71 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     }
   }
 
-  const [generating, setGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
+  async function handleInformationComplete() {
+    const id = await autoSave();
+    if (id) {
+      router.push(`/proposals/${id}`);
+    }
+  }
 
-  const GENERATION_STEPS = [
-    "Saving proposal data...",
-    "Sending prompts to AI...",
-    "Generating section content...",
-    "Almost ready...",
-  ];
+  async function fetchFromGoogleMaps() {
+    const url = form.googleMapsLink?.trim();
+    if (!url) return;
 
-  async function handleFinalSubmit() {
-    setGenerating(true);
-    setGenerationStep(0);
-
+    setFetchingMaps(true);
     try {
-      const data = buildSubmitData();
-      let id = proposalId;
+      const placeName = extractPlaceFromMapsUrl(url);
+      if (!placeName) {
+        alert("Could not extract business name from this Google Maps link. Try a link that contains '/maps/place/...'.");
+        setFetchingMaps(false);
+        return;
+      }
 
-      // Step 0: Save proposal
-      if (!id) {
-        const createRes = await fetch("/api/proposals", {
+      const res = await fetch("/api/google-places", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: placeName }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+        setFetchingMaps(false);
+        return;
+      }
+
+      if (data.results?.length > 0) {
+        const detailRes = await fetch("/api/google-places", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ placeId: data.results[0].placeId }),
         });
-        if (!createRes.ok) throw new Error("Failed to save proposal");
-        const result = await createRes.json();
-        id = result.id;
+        const detail = await detailRes.json();
+
+        if (!detail.error) {
+          setSelectedPlace(detail);
+
+          setForm(prev => ({
+            ...prev,
+            businessName: prev.businessName || detail.name || "",
+            address: prev.address || detail.address || "",
+            contactPhone: prev.contactPhone || detail.phone || "",
+            websiteUrl: prev.websiteUrl || detail.website || "",
+            googleProfileScore: detail.totalScore || prev.googleProfileScore,
+          }));
+
+          if (detail.website && !form.websiteUrl) {
+            setHasWebsite(true);
+          }
+        }
       } else {
-        const updateRes = await fetch(`/api/proposals/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        if (!updateRes.ok) throw new Error("Failed to save proposal");
+        alert("No matching business found. Try entering the business name manually.");
       }
-
-      if (!id) throw new Error("No proposal ID");
-
-      // Step 1: Trigger AI generation
-      setGenerationStep(1);
-      await new Promise(r => setTimeout(r, 500));
-
-      setGenerationStep(2);
-      const genRes = await fetch(`/api/proposals/${id}/generate`, { method: "POST" });
-      if (!genRes.ok) {
-        const err = await genRes.json();
-        throw new Error(err.error || "AI generation failed");
-      }
-
-      // Step 3: Almost done
-      setGenerationStep(3);
-      await new Promise(r => setTimeout(r, 800));
-
-      // Redirect to proposal detail page
-      window.location.href = `/proposals/${id}`;
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
-      setGenerating(false);
-      setGenerationStep(0);
+    } catch (e) {
+      console.error("Google Maps fetch failed:", e);
+      alert("Failed to fetch business details from Google Maps");
     }
+    setFetchingMaps(false);
   }
 
   async function fetchPageSpeed() {
@@ -319,104 +312,12 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
     setFetchingScores(false);
   }
 
-  async function searchGooglePlaces() {
-    const query = `${form.businessName} ${form.address}`.trim();
-    if (!query) { alert("Please enter a business name and address first"); return; }
-    setFetchingPlaces(true);
-    try {
-      const res = await fetch("/api/google-places", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      if (data.error) { alert(data.error); return; }
-      setPlacesResults(data.results || []);
-    } catch { alert("Failed to search Google Places"); }
-    setFetchingPlaces(false);
-  }
-
-  async function selectPlace(placeId: string) {
-    setFetchingPlaces(true);
-    try {
-      const res = await fetch("/api/google-places", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placeId }),
-      });
-      const data = await res.json();
-      if (data.error) { alert(data.error); return; }
-      setSelectedPlace(data);
-      let profileScore = 0;
-      if (data.name) profileScore += 20;
-      if (data.address) profileScore += 20;
-      if (data.phone) profileScore += 15;
-      if (data.website) profileScore += 15;
-      if (data.reviewCount > 0) profileScore += 15;
-      if (data.photos && data.photos.length > 0) profileScore += 15;
-
-      let localSeoScore = 0;
-      if (data.name) localSeoScore += 30;
-      if (data.rating >= 4.0) localSeoScore += 20;
-      else if (data.rating >= 3.0) localSeoScore += 10;
-      if (data.reviewCount >= 10) localSeoScore += 15;
-      else if (data.reviewCount >= 1) localSeoScore += 5;
-      if (data.photos && data.photos.length >= 3) localSeoScore += 10;
-      if (data.openingHours) localSeoScore += 10;
-      if (data.types && data.types.length > 0) localSeoScore += 5;
-
-      setForm(prev => ({ ...prev, googleProfileScore: profileScore, localSeoScore: localSeoScore }));
-    } catch { alert("Failed to fetch place details"); }
-    setFetchingPlaces(false);
-  }
-
   function toggleService(id: string) {
     setSelectedServices(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }
 
   function toggleSection(id: string) {
     setSelectedSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
-  }
-
-  if (generating) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl border border-[#c3cdd8]/50 shadow-xl p-8 max-w-md w-full mx-4">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#004527]/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[32px] text-[#004527] animate-pulse">auto_awesome</span>
-            </div>
-            <h2 className="text-lg font-semibold text-on-surface font-[family-name:var(--font-display)]">Generating Your Proposal</h2>
-            <p className="text-[13px] text-on-surface-variant mt-1">AI is crafting custom content for each section</p>
-          </div>
-          <div className="space-y-3">
-            {GENERATION_STEPS.map((step, i) => (
-              <div key={i} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                i < generationStep ? "bg-[#004527]/5" :
-                i === generationStep ? "bg-[#004527]/10 ring-1 ring-[#004527]/20" :
-                "bg-surface"
-              }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-medium ${
-                  i < generationStep ? "bg-[#004527] text-white" :
-                  i === generationStep ? "bg-[#004527] text-white animate-pulse" :
-                  "bg-[#c3cdd8]/50 text-on-surface-variant"
-                }`}>
-                  {i < generationStep ? "✓" : i + 1}
-                </div>
-                <span className={`text-[13px] ${
-                  i <= generationStep ? "text-on-surface font-medium" : "text-on-surface-variant"
-                }`}>{step}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <div className="h-1.5 bg-[#c3cdd8]/30 rounded-full overflow-hidden">
-              <div className="h-full bg-[#004527] rounded-full transition-all duration-500" style={{ width: `${((generationStep + 1) / GENERATION_STEPS.length) * 100}%` }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -433,13 +334,43 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         {saving && <span className="text-[11px] text-on-surface-variant ml-2 flex items-center gap-1"><span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span> Saving...</span>}
       </div>
 
-      {/* Tab 0: Business Basics */}
+      {/* Tab 0: Business Basics + Google Maps auto-fetch */}
       {activeTab === 0 && (
         <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-[18px] text-[#004527]">business</span>
             <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Business Basics</h3>
           </div>
+
+          {/* Google Maps Link - Primary input */}
+          <div className="mb-5 p-4 bg-[#004527]/5 rounded-lg border border-[#004527]/10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-[16px] text-[#004527]">map</span>
+              <p className="text-[13px] font-semibold text-on-surface">Start with Google Maps Link</p>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-3">Paste the Google Maps link to auto-fill business name, address, phone, and website</p>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <input
+                  type="url"
+                  value={form.googleMapsLink}
+                  onChange={e => updateField("googleMapsLink", e.target.value)}
+                  placeholder="https://www.google.com/maps/place/..."
+                  className="w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#004527]/15 focus:border-[#004527]"
+                />
+              </div>
+              <Button type="button" size="sm" loading={fetchingMaps} onClick={fetchFromGoogleMaps}>
+                {fetchingMaps ? "Fetching..." : "Fetch Details"}
+              </Button>
+            </div>
+            {selectedPlace && (
+              <div className="mt-3 flex items-center gap-2 text-[12px] text-[#15803d]">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Auto-filled from: {selectedPlace.name}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input name="businessName" label="Business Name" value={form.businessName} onChange={e => updateField("businessName", e.target.value)} required icon="store" />
             <Input name="contactName" label="Contact Person" value={form.contactName} onChange={e => updateField("contactName", e.target.value)} icon="person" />
@@ -474,7 +405,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
             <Input name="existingCrm" label="Existing CRM / Tools" value={form.existingCrm} onChange={e => updateField("existingCrm", e.target.value)} icon="hub" />
             <Input name="address" label="Business Address" value={form.address} onChange={e => updateField("address", e.target.value)} className="md:col-span-2" icon="location_on" />
             <Input name="serviceArea" label="Service Area / Locations" value={form.serviceArea} onChange={e => updateField("serviceArea", e.target.value)} icon="map" />
-            <Input name="googleMapsLink" label="Google Maps Link" value={form.googleMapsLink} onChange={e => updateField("googleMapsLink", e.target.value)} icon="place" />
             <div>
               <label className="block text-[13px] font-medium text-on-surface mb-1.5">Currency</label>
               <select name="currency" value={form.currency} onChange={e => updateField("currency", e.target.value)}
@@ -486,7 +416,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         </div>
       )}
 
-      {/* Tab 1: Online Presence + Revenue Baseline */}
+      {/* Tab 1: Online Presence + Revenue Baseline (no GBP lookup - done in step 1) */}
       {activeTab === 1 && (
         <>
           <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
@@ -511,40 +441,6 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <p className="text-lg font-bold text-[#004527] font-[family-name:var(--font-display)]">
                   {parseInt(form.avgCustomerSpend || "0") * parseInt(form.customersPerDay || "0") * parseInt(form.workingDaysPerMonth || "26")} {form.currency}
                 </p>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-[18px] text-[#004527]">search</span>
-              <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Google Business Profile Lookup</h3>
-            </div>
-            <p className="text-[12px] text-on-surface-variant mb-3">Auto-fetch business details, reviews, and photos from Google</p>
-            <Button type="button" variant="outline" size="sm" loading={fetchingPlaces} onClick={searchGooglePlaces}>Search Google Places</Button>
-            {placesResults.length > 0 && (
-              <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                {placesResults.map((p: any) => (
-                  <button key={p.placeId} type="button" onClick={() => selectPlace(p.placeId)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      selectedPlace?.placeId === p.placeId ? "border-[#004527] bg-[#004527]/5" : "border-[#c3cdd8]/50 hover:bg-surface"
-                    }`}>
-                    <p className="text-[13px] font-medium text-on-surface">{p.name}</p>
-                    <p className="text-[11px] text-on-surface-variant">{p.address}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-            {selectedPlace && (
-              <div className="mt-3 p-3 bg-[#004527]/5 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-[#004527]">check_circle</span>
-                  <span className="text-[13px] font-medium text-on-surface">{selectedPlace.name}</span>
-                </div>
-                <div className="flex gap-4 mt-1 text-[11px] text-on-surface-variant">
-                  <span>Rating: {selectedPlace.rating} ({selectedPlace.reviewCount} reviews)</span>
-                  <span>{selectedPlace.photos?.length || 0} photos</span>
-                </div>
               </div>
             )}
           </div>
@@ -592,7 +488,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">Performance</label>
                 <input type="number" min="0" max="100" value={form.lighthousePerformance} onChange={e => updateField("lighthousePerformance", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
@@ -609,9 +505,24 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
                 <label className="block text-[13px] font-medium text-on-surface mb-1.5">SEO</label>
                 <input type="number" min="0" max="100" value={form.lighthouseSeo} onChange={e => updateField("lighthouseSeo", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
               </div>
-              <div>
-                <label className="block text-[13px] font-medium text-on-surface mb-1.5">Agentic Browsing</label>
-                <input type="number" min="0" max="100" value={form.lighthouseAgenticBrowsing} onChange={e => updateField("lighthouseAgenticBrowsing", Number(e.target.value))} className={`w-full px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`} placeholder="0-100" disabled={!hasWebsite} />
+            </div>
+            {/* Agentic Browsing - pass ratio, not 0-100 score */}
+            <div className="mt-4 p-4 bg-surface rounded-lg border border-[#c3cdd8]/30">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[16px] text-[#004527]">smart_toy</span>
+                <label className="text-[13px] font-medium text-on-surface">Agentic Browsing Readiness</label>
+              </div>
+              <p className="text-[11px] text-on-surface-variant mb-3">Measures how well your site works for AI agents. Score is a pass ratio (e.g. 3/5 checks passed), not a percentage.</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={form.lighthouseAgenticBrowsing}
+                  onChange={e => updateField("lighthouseAgenticBrowsing", e.target.value)}
+                  placeholder="e.g. 3/5"
+                  className={`w-32 px-3 py-2.5 border border-[#c3cdd8] rounded-lg text-[13px] ${!hasWebsite ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                  disabled={!hasWebsite}
+                />
+                <span className="text-[12px] text-on-surface-variant">pass ratio (checks passed / total)</span>
               </div>
             </div>
           </div>
@@ -635,7 +546,7 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         </>
       )}
 
-      {/* Tab 3: Service Selection - Simple checkboxes */}
+      {/* Tab 3: Service Selection */}
       {activeTab === 3 && (
         <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
@@ -663,27 +574,38 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
         </div>
       )}
 
-      {/* Tab 4: Section Selection */}
+      {/* Tab 4: Section Selection + Information Complete */}
       {activeTab === 4 && (
-        <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-[18px] text-[#004527]">view_list</span>
-            <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Proposal Sections</h3>
+        <>
+          <div className="bg-white rounded-xl border border-[#c3cdd8]/50 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-[18px] text-[#004527]">view_list</span>
+              <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Proposal Sections</h3>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-4">Choose which sections to include in this proposal</p>
+            <div className="space-y-2">
+              {sections.map((section) => (
+                <label key={section.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#c3cdd8]/50 hover:bg-surface cursor-pointer transition-colors">
+                  <input type="checkbox" checked={selectedSections.includes(section.id)} onChange={() => toggleSection(section.id)}
+                    className="w-4 h-4 rounded border-[#c3cdd8] text-[#004527] focus:ring-[#004527]" />
+                  <div>
+                    <p className="text-[13px] font-medium text-on-surface">{section.title}</p>
+                    {section.category && <p className="text-[11px] text-on-surface-variant">{section.category}</p>}
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
-          <p className="text-[12px] text-on-surface-variant mb-4">Choose which sections to include in this proposal</p>
-          <div className="space-y-2">
-            {sections.map((section) => (
-              <label key={section.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#c3cdd8]/50 hover:bg-surface cursor-pointer transition-colors">
-                <input type="checkbox" checked={selectedSections.includes(section.id)} onChange={() => toggleSection(section.id)}
-                  className="w-4 h-4 rounded border-[#c3cdd8] text-[#004527] focus:ring-[#004527]" />
-                <div>
-                  <p className="text-[13px] font-medium text-on-surface">{section.title}</p>
-                  {section.category && <p className="text-[11px] text-on-surface-variant">{section.category}</p>}
-                </div>
-              </label>
-            ))}
+
+          {/* Information Complete Card */}
+          <div className="bg-[#004527]/5 rounded-xl border border-[#004527]/15 p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-[18px] text-[#004527]">check_circle</span>
+              <h3 className="text-[13px] font-semibold text-on-surface font-[family-name:var(--font-display)]">Information Complete</h3>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-4">All proposal information has been gathered. Click below to save and view the extended proposal.</p>
           </div>
-        </div>
+        </>
       )}
 
       {/* Navigation */}
@@ -694,7 +616,9 @@ export default function ProposalForm({ services, sections, onSubmit, initialData
           {activeTab < TABS.length - 1 ? (
             <Button type="button" loading={saving} onClick={handleNext}>Save & Next</Button>
           ) : (
-            <Button type="button" onClick={handleFinalSubmit} size="lg">Generate Proposal</Button>
+            <Button type="button" loading={saving} onClick={handleInformationComplete} size="lg">
+              Information Complete
+            </Button>
           )}
         </div>
       </div>
